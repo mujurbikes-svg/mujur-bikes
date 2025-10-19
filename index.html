@@ -17,6 +17,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
+<!-- QR Code Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
 <style>
   :root{
     --bg:#f6f8fb; --card:#ffffff; --ink:#0f172a;
@@ -67,7 +70,7 @@
   .menu.open .menu-panel{display:block}
   .menu-panel .btn{width:100%;text-align:left;background:#f3f4f6;color:#111}
   .menu-panel .btn:hover{background:#e5e7eb}
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;z-index:100}
   .modal.show{display:flex}
   .box{background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:16px;max-width:860px;width:96vw;max-height:92vh;overflow:auto;position:relative}
   /* box Detail 80% */
@@ -310,34 +313,56 @@
     max-width: 100%;
     object-fit: contain;
   }
-  
-  /* Sync Status Styles */
-  .sync-status {
-    font-size: 12px;
-    margin-top: 8px;
+
+  /* QR Code Styles */
+  .qr-product-info {
     text-align: center;
-    padding: 4px 8px;
-    border-radius: 8px;
+    margin-top: 15px;
+    font-size: 14px;
   }
-  
-  .sync-online {
-    background: var(--green);
-    color: white;
+
+  .qr-product-name {
+    font-weight: bold;
+    margin-bottom: 5px;
   }
-  
-  .sync-offline {
-    background: var(--red);
-    color: white;
+
+  .qr-product-details {
+    color: #64748b;
+    font-size: 12px;
   }
-  
-  .sync-error {
-    background: var(--amber);
-    color: black;
+
+  /* Camera Styles */
+  .camera-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
   }
-  
-  .sync-syncing {
-    background: var(--pri);
-    color: white;
+
+  .camera-preview {
+    width: 100%;
+    height: 400px;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Print Styles for QR Code */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #qrCodeContainer, #qrCodeContainer * {
+      visibility: visible;
+    }
+    #qrCodeContainer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      padding: 10mm;
+    }
   }
   
   /* Untuk desktop, batasi lebar maksimal tab */
@@ -478,7 +503,7 @@
     #userInfo {
       top: 10px;
       right: 16px;
-      z-index: 100;
+      z-index: 10;
     }
     
     .container {
@@ -506,17 +531,6 @@
     .input, select, textarea {
       min-height: 44px;
       font-size: 16px; /* Prevent zoom on iOS */
-    }
-  }
-
-  /* Dark mode support */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1e293b;
-      --card: #334155;
-      --ink: #f1f5f9;
-      --muted: #cbd5e1;
-      --line: #475569;
     }
   }
 </style>
@@ -557,65 +571,6 @@
   </div>
 </div>
 
-<!-- Password Settings Modal -->
-<div class="modal" id="passwordSettingsModal" onclick="closeModal('passwordSettingsModal')">
-  <div class="box" onclick="event.stopPropagation()">
-    <button class="closeX" onclick="closeModal('passwordSettingsModal')">✕</button>
-    <h3>Pengaturan Password</h3>
-    
-    <div class="mt8">
-      <label>Password Master Saat Ini</label>
-      <div class="password-container">
-        <input id="currentMasterPassword" type="password" class="input" placeholder="Masukkan password master saat ini">
-        <button class="password-toggle" type="button" onclick="togglePasswordVisibility('currentMasterPassword')">show</button>
-      </div>
-    </div>
-    
-    <div class="mt8">
-      <label>Password Master Baru</label>
-      <div class="password-container">
-        <input id="newMasterPassword" type="password" class="input" placeholder="Masukkan password master baru">
-        <button class="password-toggle" type="button" onclick="togglePasswordVisibility('newMasterPassword')">show</button>
-      </div>
-    </div>
-    
-    <div class="mt8">
-      <label>Konfirmasi Password Baru</label>
-      <div class="password-container">
-        <input id="confirmMasterPassword" type="password" class="input" placeholder="Konfirmasi password master baru">
-        <button class="password-toggle" type="button" onclick="togglePasswordVisibility('confirmMasterPassword')">show</button>
-      </div>
-    </div>
-    
-    <hr style="margin: 16px 0; border: 1px solid var(--line);">
-    
-    <h4>Password User</h4>
-    
-    <div class="mt8">
-      <label>Password Admin Baru</label>
-      <div class="password-container">
-        <input id="newAdminPassword" type="password" class="input" placeholder="Password admin baru">
-        <button class="password-toggle" type="button" onclick="togglePasswordVisibility('newAdminPassword')">show</button>
-      </div>
-    </div>
-    
-    <div class="mt8">
-      <label>Password Staff Baru</label>
-      <div class="password-container">
-        <input id="newStaffPassword" type="password" class="input" placeholder="Password staff baru">
-        <button class="password-toggle" type="button" onclick="togglePasswordVisibility('newStaffPassword')">show</button>
-      </div>
-    </div>
-    
-    <div id="passwordSettingsErr" class="err hidden"></div>
-    
-    <div class="row mt16">
-      <button class="btn" onclick="savePasswordSettings()">Simpan Perubahan</button>
-      <button class="btn ghost" onclick="closeModal('passwordSettingsModal')">Batal</button>
-    </div>
-  </div>
-</div>
-
 <div class="container">
   <div class="version-top">Versi 8.0 - Enhanced System</div>
   
@@ -626,16 +581,11 @@
   </div>
   <div class="ver">Sistem Manajemen Inventori Sepeda</div>
 
-  <!-- Sync Status -->
-  <div id="syncStatus" class="sync-status sync-offline hidden">
-    🔴 Offline - Data disimpan lokal
-  </div>
-
   <!-- Notification Panel -->
   <div id="notificationPanel" class="section hidden" style="background: var(--soft-yellow); border-left: 4px solid var(--amber);">
     <div class="headerRow">
-      <h3>🔔 Notifikasi Stok</h3>
-      <button class="btn ghost small" onclick="closeNotifications()">✕ Tutup</button>
+      <h3>Notifikasi Stok</h3>
+      <button class="btn ghost small" onclick="closeNotifications()">Tutup</button>
     </div>
     <div id="notificationList"></div>
   </div>
@@ -656,7 +606,6 @@
       <h2>Dashboard <span class="real-time-indicator"></span></h2>
       <div>
         <button class="btn refresh-btn" onclick="refreshData()">Refresh</button>
-        <button class="btn ghost small" onclick="manualSync()" id="syncBtn">🔄 Sync</button>
         <button class="btn ghost small" onclick="toggleAutoRefresh()" id="autoRefreshBtn">Auto: ON</button>
       </div>
     </div>
@@ -679,6 +628,7 @@
       <h2 id="tabTitle">Belum Rakit</h2>
       <div class="actions">
         <button class="btn refresh-btn" onclick="refreshData()">Refresh</button>
+        <button class="btn" id="btnScanQR" onclick="openQRScanner()">Scan QR</button>
         <button class="btn ghost" id="btnMulti">Pilih Multiple</button>
         <button class="btn amber hidden" id="btnMassEdit">Edit Massal</button>
         <button class="btn red hidden" id="btnMassDelete">Hapus Dipilih</button>
@@ -686,7 +636,7 @@
 
         <button class="btn" id="btnExport">Ekspor CSV</button>
         <div class="menu" id="importMenu">
-          <button class="btn ghost" id="btnImport">Impor CSV ▾</button>
+          <button class="btn ghost" id="btnImport">Impor CSV</button>
           <div class="menu-panel">
             <button class="btn" id="btnImportData">Impor Data Sepeda</button>
             <button class="btn" id="btnTpl">Download Template CSV</button>
@@ -740,9 +690,9 @@
     <div class="section mt8">
       <div class="headerRow"><h2>Backup & Restore</h2><div></div></div>
       <div class="toolbar">
-        <button class="btn green" id="backupBtn" onclick="backupData()">📥 Backup Data</button>
-        <button class="btn amber" id="restoreBtn" onclick="restoreData()">📤 Restore Data</button>
-        <button class="btn ghost" onclick="resetData()">🔄 Reset ke Data Demo</button>
+        <button class="btn green" id="backupBtn" onclick="backupData()">Backup Data</button>
+        <button class="btn amber" id="restoreBtn" onclick="restoreData()">Restore Data</button>
+        <button class="btn ghost" onclick="resetData()">Reset ke Data Demo</button>
       </div>
       <p class="small mt8">Backup: Simpan semua data ke file JSON. Restore: Muat data dari file JSON.</p>
     </div>
@@ -1031,6 +981,49 @@
   </div>
 </div></div>
 
+<!-- QR Code Modal -->
+<div class="modal" id="qrModal" onclick="closeModal('qrModal')">
+  <div class="box" onclick="event.stopPropagation()">
+    <button class="closeX" onclick="closeModal('qrModal')">✕</button>
+    <h3>QR Code Produk</h3>
+    <div id="qrCodeContainer" style="text-align: center; padding: 20px;"></div>
+    <div class="row mt12" style="justify-content: center;">
+      <button class="btn" onclick="printQRCode()">Print QR Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scan QR Modal -->
+<div class="modal" id="scanModal" onclick="closeModal('scanModal')">
+  <div class="box" onclick="event.stopPropagation()">
+    <button class="closeX" onclick="closeModal('scanModal')">✕</button>
+    <h3>Scan QR Code</h3>
+    <div id="qrScanner" style="width: 100%; height: 300px; background: #f1f5f9; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <div id="scannerContainer" style="width: 100%; height: 100%;"></div>
+    </div>
+    <div class="row mt12" style="justify-content: center;">
+      <button class="btn red" id="btnStopScan" onclick="stopQRScanner()">Stop Scan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Camera Modal -->
+<div class="modal" id="cameraModal" onclick="closeModal('cameraModal')">
+  <div class="box" onclick="event.stopPropagation()">
+    <button class="closeX" onclick="closeCamera()">✕</button>
+    <h3>Ambil Foto</h3>
+    <div id="cameraContainer" style="width: 100%; height: 400px; background: #000; border-radius: 12px; overflow: hidden; position: relative;">
+      <video id="cameraVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+      <canvas id="cameraCanvas" style="display: none;"></canvas>
+    </div>
+    <div class="row mt12" style="justify-content: center;">
+      <button class="btn red" id="btnCapture" onclick="capturePhoto()">Ambil Foto</button>
+      <button class="btn ghost" id="btnRetake" onclick="retakePhoto()" style="display: none;">Ulangi</button>
+      <button class="btn green" id="btnSavePhoto" onclick="savePhoto()" style="display: none;">Simpan Foto</button>
+    </div>
+  </div>
+</div>
+
 <!-- Custom Report Builder Modal -->
 <div class="modal" id="customReportModal" onclick="closeModal('customReportModal')">
   <div class="box" onclick="event.stopPropagation()">
@@ -1122,7 +1115,7 @@
 <div id="toast"></div>
 
 <!-- PWA Install Button -->
-<button id="installBtn" class="hidden">📱 Install App</button>
+<button id="installBtn" class="hidden">Install App</button>
 
 <script>
 /* ========= ENKRIPSI DATA ========= */
@@ -1237,6 +1230,11 @@ let _passResolve=null, _passTitle="Masukkan Password";
 // PWA install prompt
 let deferredPrompt;
 
+// QR Code dan Camera state
+let qrScanner = null;
+let cameraStream = null;
+let currentPhotoItemId = null;
+
 // Modifikasi inisialisasi store untuk handle data terenkripsi
 let store = (function() {
     const stored = localStorage.getItem("mujur-v80");
@@ -1273,183 +1271,6 @@ let store = (function() {
         return getDefaultStore();
     }
 })();
-
-/* ========= FIREBASE SYNC FUNCTIONS ========= */
-
-function syncToFirebase() {
-  if (syncInProgress || !isOnline || !currentUser) {
-    console.log('Sync skipped - Progress:', syncInProgress, 'Online:', isOnline, 'User:', currentUser);
-    return;
-  }
-  
-  syncInProgress = true;
-  updateSyncStatus('syncing', 'Menyinkronkan data...');
-  
-  try {
-    // Tambahkan timestamp sebelum sync
-    store.lastSync = Date.now();
-    
-    const userDataRef = database.ref('users/' + currentUser.uid + '/data');
-    userDataRef.set(store)
-      .then(() => {
-        console.log('Data synced to Firebase');
-        updateSyncStatus('online', 'Data tersimpan di cloud');
-        localStorage.setItem('mujur-last-sync', store.lastSync);
-      })
-      .catch((error) => {
-        console.error('Firebase sync error:', error);
-        updateSyncStatus('error', 'Gagal sync ke cloud');
-      })
-      .finally(() => {
-        syncInProgress = false;
-      });
-  } catch (error) {
-    console.error('Sync error:', error);
-    syncInProgress = false;
-    updateSyncStatus('error', 'Error sync');
-  }
-}
-
-function loadFromFirebase() {
-  if (!isOnline || !currentUser) {
-    console.log('Load from Firebase skipped - Online:', isOnline, 'User:', currentUser);
-    return;
-  }
-  
-  const userDataRef = database.ref('users/' + currentUser.uid + '/data');
-  userDataRef.once('value')
-    .then((snapshot) => {
-      const firebaseData = snapshot.val();
-      if (firebaseData) {
-        // Merge data: prioritaskan data yang lebih baru
-        const localTimestamp = localStorage.getItem('mujur-last-sync');
-        const firebaseTimestamp = firebaseData.lastSync || 0;
-        
-        if (!localTimestamp || (firebaseTimestamp > localTimestamp)) {
-          // Gunakan data dari Firebase jika lebih baru
-          store = firebaseData;
-          // Enkripsi data lokal setelah load dari Firebase
-          const encryptedData = encryptData(store);
-          if (encryptedData) {
-            localStorage.setItem("mujur-v80", encryptedData);
-          }
-          localStorage.setItem('mujur-last-sync', firebaseTimestamp);
-          toast('Data terbaru telah dimuat dari cloud');
-          guardedRender();
-        } else {
-          console.log('Local data is newer, skipping Firebase load');
-        }
-      }
-    })
-    .catch((error) => {
-      console.error('Firebase load error:', error);
-      updateSyncStatus('error', 'Gagal memuat dari cloud');
-    });
-}
-
-function updateSyncStatus(status, message = '') {
-  const statusElement = $('#syncStatus');
-  if (!statusElement) return;
-  
-  statusElement.classList.remove('hidden');
-  
-  switch(status) {
-    case 'online':
-      statusElement.innerHTML = `🟢 ${message || 'Terhubung - Data disinkronkan'}`;
-      statusElement.className = 'sync-status sync-online';
-      break;
-    case 'offline':
-      statusElement.innerHTML = '🔴 Offline - Data disimpan lokal';
-      statusElement.className = 'sync-status sync-offline';
-      break;
-    case 'error':
-      statusElement.innerHTML = `⚠️ ${message || 'Error sinkronisasi'}`;
-      statusElement.className = 'sync-status sync-error';
-      break;
-    case 'syncing':
-      statusElement.innerHTML = '🔄 Menyinkronkan...';
-      statusElement.className = 'sync-status sync-syncing';
-      break;
-  }
-}
-
-function manualSync() {
-  if (!isOnline) {
-    toast('Tidak ada koneksi internet');
-    return;
-  }
-  
-  if (!currentUser) {
-    toast('Silakan login terlebih dahulu');
-    return;
-  }
-  
-  updateSyncStatus('syncing', 'Memulai sinkronisasi manual...');
-  syncToFirebase();
-}
-
-/* ========= ONLINE/OFFLINE DETECTION ========= */
-
-function initConnectivity() {
-  // Deteksi status koneksi
-  window.addEventListener('online', () => {
-    isOnline = true;
-    console.log('Online detected');
-    updateSyncStatus('online', 'Terhubung - Menyinkronkan...');
-    if (currentUser) {
-      // Tunggu sebentar sebelum load untuk memastikan koneksi stabil
-      setTimeout(() => {
-        loadFromFirebase();
-        syncToFirebase();
-      }, 2000);
-    }
-  });
-  
-  window.addEventListener('offline', () => {
-    isOnline = false;
-    console.log('Offline detected');
-    updateSyncStatus('offline');
-  });
-  
-  // Deteksi perubahan data di Firebase (real-time sync)
-  auth.onAuthStateChanged((user) => {
-    if (user && currentUser) {
-      console.log('Firebase auth state changed, setting up real-time listener');
-      const userDataRef = database.ref('users/' + user.uid + '/data');
-      userDataRef.on('value', (snapshot) => {
-        const firebaseData = snapshot.val();
-        if (firebaseData && !syncInProgress) {
-          const localData = JSON.parse(localStorage.getItem("mujur-v80") || "{}");
-          const localTimestamp = localData.lastSync || 0;
-          const firebaseTimestamp = firebaseData.lastSync || 0;
-          
-          // Only update if Firebase data is newer
-          if (firebaseTimestamp > localTimestamp) {
-            console.log('Newer data detected from Firebase, updating local storage');
-            store = firebaseData;
-            const encryptedData = encryptData(store);
-            if (encryptedData) {
-              localStorage.setItem("mujur-v80", encryptedData);
-            }
-            localStorage.setItem('mujur-last-sync', firebaseTimestamp);
-            toast('Data diperbarui dari cloud');
-            guardedRender();
-          }
-        }
-      });
-    }
-  });
-  
-  // Set initial status
-  isOnline = navigator.onLine;
-  if (isOnline) {
-    updateSyncStatus('online', 'Terhubung ke cloud');
-  } else {
-    updateSyncStatus('offline');
-  }
-  
-  console.log('Initial connectivity status:', isOnline);
-}
 
 /* ========= User Management ========= */
 let currentUser = null;
@@ -1771,6 +1592,425 @@ function generateCustomReport() {
   closeModal('customReportModal');
 }
 
+/* ========= QR Code Functions ========= */
+function generateQRCode(itemId) {
+  const item = store.items.find(x => x.id === itemId);
+  if (!item) return;
+
+  const qrData = JSON.stringify({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    size: item.size,
+    code: item.code || genCode(item.supplier, item.arrivalDate)
+  });
+
+  const qrContainer = $('#qrCodeContainer');
+  qrContainer.innerHTML = '';
+
+  try {
+    // Method 1: Gunakan QRCode.toString untuk compatibility yang lebih baik
+    QRCode.toString(qrData, {
+      type: 'svg',
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    }, function(err, svgString) {
+      if (err) {
+        // Fallback: Gunakan canvas
+        generateQRCodeCanvas(qrData, qrContainer, item);
+        return;
+      }
+      qrContainer.innerHTML = svgString;
+      addProductDetails(qrContainer, item);
+    });
+  } catch (error) {
+    // Fallback method
+    generateQRCodeFallback(qrData, qrContainer, item);
+  }
+}
+
+function generateQRCodeCanvas(qrData, container, item) {
+  try {
+    QRCode.toCanvas(qrData, { 
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    }, function(err, canvas) {
+      if (err) {
+        generateQRCodeFallback(qrData, container, item);
+        return;
+      }
+      container.appendChild(canvas);
+      addProductDetails(container, item);
+    });
+  } catch (error) {
+    generateQRCodeFallback(qrData, container, item);
+  }
+}
+
+function generateQRCodeFallback(qrData, container, item) {
+  // Simple text fallback
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px; border: 2px dashed #ccc; border-radius: 10px;">
+      <div style="font-size: 48px; margin-bottom: 10px;">📱</div>
+      <div style="font-weight: bold; margin-bottom: 10px;">QR Code</div>
+      <div style="margin-bottom: 5px;">${item.name}</div>
+      <div style="color: #64748b; font-size: 12px;">${item.type} • ${item.size}</div>
+      <div style="color: #64748b; font-size: 10px; margin-top: 10px;">Data: ${qrData.substring(0, 30)}...</div>
+    </div>
+  `;
+  addProductDetails(container, item);
+}
+
+function addProductDetails(container, item) {
+  const details = document.createElement('div');
+  details.className = 'qr-product-info';
+  details.innerHTML = `
+    <div class="qr-product-name">${item.name}</div>
+    <div class="qr-product-details">${item.type} • ${item.size}</div>
+    <div class="qr-product-details">${item.code || 'No Code'}</div>
+  `;
+  container.appendChild(details);
+}
+
+function printQRCode() {
+  const printContent = $('#qrCodeContainer').innerHTML;
+  const originalContent = document.body.innerHTML;
+
+  document.body.innerHTML = printContent;
+  window.print();
+  document.body.innerHTML = originalContent;
+  
+  // Setelah print, kita perlu render ulang karena body diubah
+  render();
+}
+
+function openQRScanner() {
+  showModal('scanModal');
+  
+  // Check if browser supports camera access
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showCameraNotSupported();
+    return;
+  }
+  
+  startQRScanner();
+}
+
+function startQRScanner() {
+  const scannerContainer = $('#scannerContainer');
+  scannerContainer.innerHTML = `
+    <div style="text-align: center; padding: 20px;">
+      <div style="font-size: 18px; margin-bottom: 15px;">Mengakses Kamera...</div>
+      <div style="color: #64748b; margin-bottom: 20px;">Izinkan akses kamera ketika diminta</div>
+      <button class="btn" onclick="startCameraForQR()">Mulai Kamera</button>
+    </div>
+  `;
+}
+
+function startCameraForQR() {
+  const scannerContainer = $('#scannerContainer');
+  
+  navigator.mediaDevices.getUserMedia({ 
+    video: { 
+      facingMode: 'environment',
+      width: { ideal: 640 },
+      height: { ideal: 480 }
+    } 
+  }).then(function(stream) {
+    scannerContainer.innerHTML = `
+      <video id="qrVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+      <div style="position: absolute; top: 10px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.5); padding: 5px;">
+        Arahkan kamera ke QR Code
+      </div>
+    `;
+    
+    const video = $('#qrVideo');
+    video.srcObject = stream;
+    
+    // Untuk implementasi nyata, Anda perlu library seperti:
+    // Instascan.js atau jsQR
+    showQRScannerSimulation();
+    
+  }).catch(function(err) {
+    console.error('Error accessing camera:', err);
+    showCameraError(err);
+  });
+}
+
+function showQRScannerSimulation() {
+  const scannerContainer = $('#scannerContainer');
+  setTimeout(() => {
+    scannerContainer.innerHTML += `
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7);">
+        <div style="text-align: center; color: white; padding: 20px;">
+          <div style="font-size: 48px; margin-bottom: 15px;">🔍</div>
+          <div style="font-weight: bold; margin-bottom: 10px;">Scanner Simulation</div>
+          <div style="margin-bottom: 15px;">Untuk scanner QR nyata, gunakan library seperti Instascan.js</div>
+          <button class="btn" onclick="simulateQRScan()">Simulasi Scan</button>
+        </div>
+      </div>
+    `;
+  }, 2000);
+}
+
+function showCameraNotSupported() {
+  $('#scannerContainer').innerHTML = `
+    <div style="text-align: center; padding: 40px 20px;">
+      <div style="font-size: 48px; margin-bottom: 20px;">📵</div>
+      <div style="font-weight: bold; margin-bottom: 10px;">Kamera Tidak Didukung</div>
+      <div style="margin-bottom: 15px;">Browser ini tidak mendukung akses kamera.</div>
+      <div style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+        Coba gunakan browser modern seperti Chrome, Firefox, atau Safari
+      </div>
+      <button class="btn" onclick="simulateQRScan()">Lanjutkan dengan Simulasi</button>
+    </div>
+  `;
+}
+
+function showCameraError(error) {
+  $('#scannerContainer').innerHTML = `
+    <div style="text-align: center; padding: 40px 20px;">
+      <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+      <div style="font-weight: bold; margin-bottom: 10px;">Gagal Mengakses Kamera</div>
+      <div style="margin-bottom: 15px;">${error.message || 'Tidak dapat mengakses kamera'}</div>
+      <div style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+        Pastikan izin kamera sudah diaktifkan
+      </div>
+      <button class="btn" onclick="simulateQRScan()">Lanjutkan dengan Simulasi</button>
+    </div>
+  `;
+}
+
+function stopQRScanner() {
+  closeModal('scanModal');
+  // Di implementasi nyata, hentikan scanner di sini
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => {
+      track.stop();
+    });
+    cameraStream = null;
+  }
+}
+
+function simulateQRScan() {
+  // Simulasi scan QR Code - ambil item random dari store
+  const availableItems = store.items.filter(item => item.status === 'masuk' || item.status === 'dirakit');
+  if (availableItems.length === 0) {
+    alert('Tidak ada item yang bisa di-scan');
+    return;
+  }
+  
+  const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+  
+  // Tampilkan hasil scan
+  $('#scannerContainer').innerHTML = `
+    <div style="text-align: center; padding: 30px 20px;">
+      <div style="color: var(--green); font-size: 48px; margin-bottom: 15px;">Berhasil</div>
+      <div style="font-weight: bold; margin-bottom: 10px;">Berhasil di-scan!</div>
+      <div style="margin-bottom: 5px;">${randomItem.name}</div>
+      <div style="margin-bottom: 5px;">${randomItem.type} • ${randomItem.size}</div>
+      <div style="color: #64748b; font-size: 12px; margin-bottom: 20px;">${randomItem.code || 'No Code'}</div>
+      <button class="btn" onclick="openDetailFromScan('${randomItem.id}')">Lihat Detail</button>
+    </div>
+  `;
+}
+
+function openDetailFromScan(itemId) {
+  closeModal('scanModal');
+  const item = store.items.find(x => x.id === itemId);
+  if (item) {
+    const index = currentList.findIndex(x => x.id === itemId);
+    if (index !== -1) {
+      openDetail(item, index);
+    } else {
+      // Jika item tidak ada di current list, tetap buka detail
+      openDetail(item, 0);
+    }
+  }
+}
+
+/* ========= Camera Functions ========= */
+function takePhoto(itemId) {
+  currentPhotoItemId = itemId;
+  showModal('cameraModal');
+  
+  // Check camera support
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showCameraNotSupportedForPhoto();
+    return;
+  }
+  
+  startCamera();
+}
+
+function showCameraNotSupportedForPhoto() {
+  $('#cameraContainer').innerHTML = `
+    <div style="color: white; text-align: center; padding: 50px 20px;">
+      <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
+      <div>Kamera tidak didukung di browser ini</div>
+      <div style="font-size: 12px; margin-top: 10px;">Gunakan browser modern untuk fitur kamera</div>
+      <button class="btn" style="margin-top: 20px;" onclick="uploadPhotoFallback('${currentPhotoItemId}')">Unggah Foto</button>
+    </div>
+  `;
+}
+
+function startCamera() {
+  const video = $('#cameraVideo');
+  
+  // Reset state
+  $('#btnCapture').style.display = 'block';
+  $('#btnRetake').style.display = 'none';
+  $('#btnSavePhoto').style.display = 'none';
+  
+  // Akses kamera
+  navigator.mediaDevices.getUserMedia({ 
+    video: { 
+      facingMode: 'environment', // Gunakan kamera belakang jika tersedia
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
+    },
+    audio: false 
+  })
+  .then(function(stream) {
+    cameraStream = stream;
+    video.srcObject = stream;
+  })
+  .catch(function(err) {
+    console.error('Error accessing camera:', err);
+    $('#cameraContainer').innerHTML = `
+      <div style="color: white; text-align: center; padding: 50px 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+        <div>Tidak dapat mengakses kamera</div>
+        <div style="font-size: 12px; margin-top: 10px;">${err.message || 'Pastikan izin kamera sudah diaktifkan'}</div>
+        <button class="btn" style="margin-top: 20px;" onclick="uploadPhotoFallback('${currentPhotoItemId}')">Unggah Foto</button>
+      </div>
+    `;
+  });
+}
+
+function capturePhoto() {
+  const video = $('#cameraVideo');
+  const canvas = $('#cameraCanvas');
+  const context = canvas.getContext('2d');
+  
+  // Set canvas size sama dengan video
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  // Gambar frame video ke canvas
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Tampilkan preview foto
+  $('#cameraContainer').innerHTML = '<img src="' + canvas.toDataURL('image/jpeg') + '" style="width: 100%; height: 100%; object-fit: contain;">';
+  
+  // Tampilkan tombol ulangi dan simpan
+  $('#btnCapture').style.display = 'none';
+  $('#btnRetake').style.display = 'block';
+  $('#btnSavePhoto').style.display = 'block';
+  
+  // Hentikan kamera
+  stopCamera();
+}
+
+function retakePhoto() {
+  // Kembali ke mode kamera
+  $('#cameraContainer').innerHTML = '<video id="cameraVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video><canvas id="cameraCanvas" style="display: none;"></canvas>';
+  startCamera();
+}
+
+function savePhoto() {
+  if (!currentPhotoItemId) return;
+  
+  const canvas = $('#cameraCanvas');
+  const imageData = canvas.toDataURL('image/jpeg');
+  
+  const item = store.items.find(x => x.id === currentPhotoItemId);
+  if (item) {
+    item.image = imageData;
+    
+    // Jika ada item dengan nama, tipe, dan ukuran yang sama, update juga gambarnya
+    store.items.forEach(it => {
+      if (it.name === item.name && it.type === item.type && it.size === item.size && !it.image) {
+        it.image = imageData;
+      }
+    });
+    
+    save();
+    showSuccess("Foto berhasil disimpan");
+    
+    // Refresh detail view
+    const currentItem = store.items.find(x => x.id === currentPhotoItemId);
+    if (currentItem) {
+      const currentIndex = currentList.findIndex(x => x.id === currentPhotoItemId);
+      if (currentIndex !== -1) {
+        openDetail(currentItem, currentIndex);
+      }
+    }
+  }
+  
+  closeCamera();
+}
+
+function closeCamera() {
+  stopCamera();
+  closeModal('cameraModal');
+  currentPhotoItemId = null;
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => {
+      track.stop();
+    });
+    cameraStream = null;
+  }
+}
+
+function uploadPhotoFallback(itemId) {
+  closeCamera();
+  // Fallback ke input file biasa
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment'; // Untuk mobile devices
+  
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const data = event.target.result;
+      const item = store.items.find(x => x.id === itemId);
+      if (item) {
+        item.image = data;
+        save();
+        showSuccess("Foto berhasil diunggah");
+        
+        // Refresh detail view
+        const currentItem = store.items.find(x => x.id === itemId);
+        if (currentItem) {
+          const currentIndex = currentList.findIndex(x => x.id === itemId);
+          if (currentIndex !== -1) {
+            openDetail(currentItem, currentIndex);
+          }
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  input.click();
+}
+
 // ========= FUNGSI UTAMA YANG SUDAH ADA =========
 
 function save(){ 
@@ -1784,11 +2024,6 @@ function save(){
   } else {
     // Fallback ke penyimpanan tanpa enkripsi jika error
     localStorage.setItem("mujur-v80", JSON.stringify(store));
-  }
-  
-  // Coba sync ke Firebase jika online
-  if (isOnline && currentUser) {
-    syncToFirebase();
   }
   
   // Auto backup ketika ada perubahan data
@@ -1897,19 +2132,6 @@ function initAuth() {
     currentUser = JSON.parse(savedUser);
     applyUserPermissions();
     showUserInfo();
-    
-    // Coba login ke Firebase
-    const firebaseEmail = `${currentUser.username}@mujurbikes.local`;
-    auth.signInWithEmailAndPassword(firebaseEmail, currentUser.password)
-      .then((userCredential) => {
-        console.log('Firebase auto-login success');
-        isOnline = true;
-        loadFromFirebase();
-      })
-      .catch((error) => {
-        console.log('Firebase auto-login failed, will create user on next action');
-        isOnline = false;
-      });
   } else {
     showModal('loginModal');
   }
@@ -1932,54 +2154,30 @@ function doLogin() {
     
     localStorage.setItem('mujur-currentUser', JSON.stringify(currentUser));
     
-    // Firebase login logic tetap sama...
-    const firebaseEmail = `${username}@mujurbikes.local`;
-    auth.signInWithEmailAndPassword(firebaseEmail, password)
-      .then((userCredential) => {
-        console.log('Firebase login success');
-        isOnline = true;
-        loadFromFirebase();
-      })
-      .catch((error) => {
-        // Jika user belum ada, buat user baru di Firebase
-        if (error.code === 'auth/user-not-found') {
-          auth.createUserWithEmailAndPassword(firebaseEmail, password)
-            .then((userCredential) => {
-              console.log('Firebase user created');
-              isOnline = true;
-              syncToFirebase();
-            })
-            .catch((createError) => {
-              console.error('Firebase create user error:', createError);
-              isOnline = false;
-            });
-        } else {
-          console.error('Firebase login error:', error);
-          isOnline = false;
-        }
-      })
-      .finally(() => {
-        closeModal('loginModal');
-        applyUserPermissions();
-        showUserInfo();
-        toast(`Selamat datang, ${currentUser.name}!`);
-        checkStockNotifications();
-      });
+    closeModal('loginModal');
+    applyUserPermissions();
+    showUserInfo();
+    toast(`Selamat datang, ${currentUser.name}!`);
+    checkStockNotifications();
   } else {
     $('loginErr').classList.remove('hidden');
   }
 }
 
 function logout() {
-  auth.signOut().then(() => {
-    console.log('Firebase logout success');
-  }).catch((error) => {
-    console.error('Firebase logout error:', error);
-  });
+  if (!confirm("Apakah Anda yakin ingin logout?")) {
+    return;
+  }
   
   currentUser = null;
   localStorage.removeItem('mujur-currentUser');
   isOnline = false;
+  
+  // Clear form login
+  $('loginUsername').value = '';
+  $('loginPassword').value = '';
+  $('loginErr').classList.add('hidden');
+  
   showModal('loginModal');
   toast('Anda telah logout');
 }
@@ -2035,7 +2233,7 @@ function showUserInfo() {
   userInfo.innerHTML = `
     <div class="menu" id="userMenu">
       <button class="btn ghost small" style="font-size: 12px; padding: 4px 8px;">
-        ${currentUser.name} (${currentUser.role}) ▾
+        ${currentUser.name} (${currentUser.role})
       </button>
       <div class="menu-panel">
         <button class="btn" onclick="logout()">Logout</button>
@@ -2392,15 +2590,6 @@ function renderDashboard() {
     <div class="dashboard-card">
       <div class="dashboard-label">Stok Menipis</div>
       <div class="dashboard-value ${lowStock > 0 ? 'red' : ''}">${lowStock}</div>
-    </div>
-    <div class="dashboard-card">
-      <div class="dashboard-label">Status Sinkronisasi</div>
-      <div class="dashboard-value" style="font-size: 14px; color: ${isOnline ? 'var(--green)' : 'var(--red)'}">
-        ${isOnline ? '🟢 ONLINE' : '🔴 OFFLINE'}
-      </div>
-      <div style="font-size: 12px; margin-top: 8px;">
-        ${isOnline ? 'Data tersinkronisasi' : 'Mode offline'}
-      </div>
     </div>
   `;
   
@@ -3339,6 +3528,10 @@ function openDetail(it,idx){
     <div class="detail-sub">${it.type||"-"} • ${it.size||"-"}</div>
     <div class="detail-stock">Stok: ${it.totalQty??"-"}</div>
     ${imgHTML}
+    <div class="row mt8" style="justify-content: center;">
+      <button class="btn ghost small" onclick="addImageInline('${it.id}','${esc(it.name)}','${esc(it.type)}','${esc(it.size)}')">Tambah Gambar</button>
+      <button class="btn ghost small" onclick="takePhoto('${it.id}')">Ambil Foto</button>
+    </div>
     <table class="table"><tbody>
       <tr><td>Tgl Datang</td><td>${it.arrivalDate||"N/A"}</td></tr>
       <tr><td>Supplier</td><td>${it.supplier||"N/A"}</td></tr>
@@ -3348,11 +3541,14 @@ function openDetail(it,idx){
       <tr><td>Kode/ID</td><td>${genCode(it.supplier,it.arrivalDate)||"-"}</td></tr>
     </tbody></table>
     ${extra}
+    <div class="row mt12" style="justify-content: center;">
+      <button class="btn" onclick="generateQRCode('${it.id}')">Generate QR Code</button>
+    </div>
     <div class="row mt12" style="justify-content:space-between">
       <button class="btn amber" onclick="secureEdit('${it.id}')">Edit</button>
       <div>
-        <button class="btn ghost" onclick="navDetail(-1)">◀ Sebelumnya</button> 
-        <button class="btn ghost" onclick="navDetail(1)">Berikutnya ▶</button>
+        <button class="btn ghost" onclick="navDetail(-1)">Sebelumnya</button> 
+        <button class="btn ghost" onclick="navDetail(1)">Berikutnya</button>
       </div>
       <button class="btn red" onclick="secureDelete('${it.id}')">Hapus</button>
     </div>
@@ -3775,21 +3971,6 @@ function renderMaster(){
     div.appendChild(r); 
   });
   
-  // Tambahkan section pengaturan password
-  const passwordSection = document.createElement("div");
-  passwordSection.className = "section mt8";
-  passwordSection.innerHTML = `
-    <h3>Pengaturan Password</h3>
-    <div class="readLine">
-      <span style="font-weight:900;min-width:120px;display:inline-block">Status :</span>
-      <span>Password terkonfigurasi</span>
-    </div>
-    <div class="row mt8">
-      <button class="btn amber" onclick="openPasswordSettings()">Ubah Password</button>
-    </div>
-  `;
-  div.appendChild(passwordSection);
-  
   $("masterEdit").classList.add("hidden"); 
   $("masterRead").classList.remove("hidden");
   $("btnMasterEdit").classList.remove("hidden"); 
@@ -3900,60 +4081,6 @@ $("btnMasterCancel").onclick=()=>{
   $("btnMasterSave").classList.add("hidden"); 
   $("btnMasterCancel").classList.add("hidden");
 };
-
-/* ========= Pengaturan Password ========= */
-function openPasswordSettings() {
-  // Reset form
-  $('#currentMasterPassword').value = '';
-  $('#newMasterPassword').value = '';
-  $('#confirmMasterPassword').value = '';
-  $('#newAdminPassword').value = '';
-  $('#newStaffPassword').value = '';
-  $('#passwordSettingsErr').classList.add('hidden');
-  
-  showModal('passwordSettingsModal');
-}
-
-function savePasswordSettings() {
-  const currentMaster = $('#currentMasterPassword').value;
-  const newMaster = $('#newMasterPassword').value;
-  const confirmMaster = $('#confirmMasterPassword').value;
-  const newAdmin = $('#newAdminPassword').value;
-  const newStaff = $('#newStaffPassword').value;
-  
-  const errDiv = $('#passwordSettingsErr');
-  errDiv.classList.add('hidden');
-  
-  // Validasi
-  if (currentMaster !== store.settings.masterPassword) {
-    errDiv.textContent = 'Password master saat ini salah';
-    errDiv.classList.remove('hidden');
-    return;
-  }
-  
-  if (newMaster && newMaster !== confirmMaster) {
-    errDiv.textContent = 'Konfirmasi password master baru tidak cocok';
-    errDiv.classList.remove('hidden');
-    return;
-  }
-  
-  // Simpan perubahan
-  if (newMaster) {
-    store.settings.masterPassword = newMaster;
-  }
-  
-  if (newAdmin) {
-    store.settings.userPasswords.admin = newAdmin;
-  }
-  
-  if (newStaff) {
-    store.settings.userPasswords.staff = newStaff;
-  }
-  
-  save();
-  closeModal('passwordSettingsModal');
-  showSuccess('Pengaturan password berhasil disimpan');
-}
 
 /* ========= Laporan ========= */
 function renderLaporan() {
@@ -4700,10 +4827,6 @@ function init() {
   
   // Update UI based on settings
   $('#autoRefreshBtn').textContent = isAutoRefreshEnabled ? 'Auto: ON' : 'Auto: OFF';
-  $('#syncBtn').textContent = isOnline ? '🔄 Sync' : '🔴 Offline';
-  
-  // Initialize Firebase connectivity
-  initConnectivity();
   
   // Initialize real-time features
   initRealTimeFeatures();
