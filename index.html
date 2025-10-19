@@ -357,6 +357,56 @@
   font-size: 48px;
   margin-bottom: 20px;
 }
+  /* QR Code Container */
+#qrCodeContainer {
+  text-align: center;
+  padding: 20px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Camera Container Fallback */
+.camera-fallback-container {
+  color: white;
+  text-align: center;
+  padding: 50px 20px;
+  background: #333;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Scanner Container */
+.scanner-fallback-container {
+  text-align: center;
+  padding: 40px 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Success States */
+.scanner-success {
+  text-align: center;
+  padding: 30px 20px;
+  background: #d4edda;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
   /* Print Styles for QR Code */
   @media print {
     body * {
@@ -1615,41 +1665,48 @@ function generateQRCode(itemId) {
   });
 
   const qrContainer = $('#qrCodeContainer');
-  qrContainer.innerHTML = '<div style="text-align:center;">Generating QR Code...</div>';
+  qrContainer.innerHTML = '<div style="text-align:center; padding:20px;">Generating QR Code...</div>';
 
+  // Clear previous QR code
+  qrContainer.innerHTML = '';
+  
   try {
-    // Gunakan approach yang lebih kompatibel
-    QRCode.toDataURL(qrData, {
+    // Create canvas element for QR code
+    const canvas = document.createElement('canvas');
+    qrContainer.appendChild(canvas);
+    
+    // Generate QR code
+    QRCode.toCanvas(canvas, qrData, {
       width: 200,
-      height: 200,
       margin: 1,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
       }
-    }, function(err, url) {
+    }, function(err) {
       if (err) {
         console.error('QR Code error:', err);
-        qrContainer.innerHTML = '<div style="color:red;">Error generating QR Code</div>';
+        qrContainer.innerHTML = '<div style="color:red; text-align:center;">Error generating QR Code</div>';
         return;
       }
 
-      qrContainer.innerHTML = `
-        <img src="${url}" alt="QR Code" style="max-width:200px; max-height:200px;">
-        <div class="qr-product-info">
-          <div class="qr-product-name">${item.name}</div>
-          <div class="qr-product-details">${item.type} • ${item.size}</div>
-          <div class="qr-product-details">${item.code || 'No Code'}</div>
-        </div>
+      // Add product info
+      const details = document.createElement('div');
+      details.className = 'qr-product-info';
+      details.innerHTML = `
+        <div class="qr-product-name">${item.name}</div>
+        <div class="qr-product-details">${item.type} • ${item.size}</div>
+        <div class="qr-product-details">${item.code || 'No Code'}</div>
       `;
+      qrContainer.appendChild(details);
     });
   } catch (error) {
     console.error('QR Code generation failed:', error);
-    qrContainer.innerHTML = '<div style="color:red;">QR Code generation failed</div>';
+    qrContainer.innerHTML = '<div style="color:red; text-align:center;">QR Code generation failed</div>';
   }
 
   showModal('qrModal');
-}
+    }
 function generateQRCodeFallback(qrData, container, item) {
   // Simple text fallback
   container.innerHTML = `
@@ -1703,18 +1760,70 @@ function openQRScanner() {
   showModal('scanModal');
   
   $('#scannerContainer').innerHTML = `
-    <div style="text-align: center; padding: 20px;">
-      <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
-      <div style="margin-bottom: 20px;">Fitur Scanner QR Code</div>
-      <div style="background: #f0f0f0; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-        <p><strong>Untuk menggunakan scanner QR Code nyata:</strong></p>
-        <p>1. Install library scanner seperti Instascan.js</p>
-        <p>2. Pastikan dijalankan di HTTPS atau localhost</p>
-        <p>3. Berikan izin akses kamera</p>
+    <div style="text-align: center; padding: 40px 20px; background: #f8f9fa; border-radius: 12px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+      <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
+      <div style="font-weight: bold; margin-bottom: 15px; font-size: 18px;">Scanner QR Code</div>
+      <div style="margin-bottom: 20px; text-align: center; color: #666;">
+        Fitur scanner QR code memerlukan implementasi tambahan<br>
+        dengan library seperti Instascan.js atau Html5Qrcode
       </div>
-      <button class="btn" onclick="testQRScan()">Test Scan (Simulasi)</button>
+      
+      <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; width: 100%; max-width: 300px;">
+        <div style="font-weight: bold; margin-bottom: 10px;">Test Simulasi Scanner:</div>
+        <button class="btn" onclick="simulateQRScan()" style="margin: 5px;">Scan Item Random</button>
+        <button class="btn ghost" onclick="testManualQRInput()" style="margin: 5px;">Input Manual Kode</button>
+      </div>
+      
+      <div style="font-size: 12px; color: #999; margin-top: 20px;">
+        Untuk implementasi nyata, diperlukan:<br>
+        • Library scanner (Instascan.js/Html5Qrcode)<br>
+        • Izin akses kamera<br>
+        • HTTPS environment
+      </div>
     </div>
   `;
+}
+
+function simulateQRScan() {
+  const availableItems = store.items.filter(item => item.status === 'masuk' || item.status === 'dirakit');
+  if (availableItems.length === 0) {
+    alert('Tidak ada item yang bisa di-scan');
+    return;
+  }
+  
+  const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+  
+  $('#scannerContainer').innerHTML = `
+    <div style="text-align: center; padding: 30px 20px; background: #d4edda; border-radius: 12px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+      <div style="color: var(--green); font-size: 48px; margin-bottom: 15px;">✓</div>
+      <div style="font-weight: bold; margin-bottom: 10px; font-size: 20px;">Berhasil di-scan!</div>
+      <div style="margin-bottom: 5px; font-size: 16px;">${randomItem.name}</div>
+      <div style="margin-bottom: 5px;">${randomItem.type} • ${randomItem.size}</div>
+      <div style="color: #64748b; font-size: 12px; margin-bottom: 20px;">Kode: ${randomItem.code || 'No Code'}</div>
+      <button class="btn" onclick="openDetailFromScan('${randomItem.id}')" style="margin: 5px;">Lihat Detail Item</button>
+      <button class="btn ghost" onclick="openQRScanner()" style="margin: 5px;">Scan Lagi</button>
+    </div>
+  `;
+}
+
+function testManualQRInput() {
+  const itemId = prompt("Masukkan ID item untuk simulasi scan (kosongkan untuk random):");
+  if (itemId === null) return;
+  
+  let item;
+  if (itemId) {
+    item = store.items.find(x => x.id === itemId);
+  } else {
+    const availableItems = store.items.filter(item => item.status === 'masuk' || item.status === 'dirakit');
+    item = availableItems[Math.floor(Math.random() * availableItems.length)];
+  }
+  
+  if (!item) {
+    alert('Item tidak ditemukan');
+    return;
+  }
+  
+  openDetailFromScan(item.id);
 }
 
 // Fungsi test scan
@@ -1867,11 +1976,11 @@ function takePhoto(itemId) {
   currentPhotoItemId = itemId;
   showModal('cameraModal');
   
-  // Coba akses kamera, jika gagal tampilkan opsi upload
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showCameraFallback();
-    return;
-  }
+  // Reset camera container
+  $('#cameraContainer').innerHTML = `
+    <video id="cameraVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+    <canvas id="cameraCanvas" style="display: none;"></canvas>
+  `;
   
   startCamera();
 }
@@ -1879,14 +1988,25 @@ function takePhoto(itemId) {
 function startCamera() {
   const video = $('#cameraVideo');
   
-  // Reset UI
+  if (!video) {
+    console.error('Video element not found');
+    return;
+  }
+  
+  // Reset UI state
   $('#btnCapture').style.display = 'block';
   $('#btnRetake').style.display = 'none';
   $('#btnSavePhoto').style.display = 'none';
   
-  // Hentikan stream sebelumnya jika ada
+  // Stop any existing stream
   if (cameraStream) {
     cameraStream.getTracks().forEach(track => track.stop());
+  }
+  
+  // Check if browser supports mediaDevices
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showCameraFallback();
+    return;
   }
   
   navigator.mediaDevices.getUserMedia({ 
@@ -1900,7 +2020,28 @@ function startCamera() {
   .then(function(stream) {
     cameraStream = stream;
     video.srcObject = stream;
-    video.play().catch(e => console.error('Video play error:', e));
+    
+    // Handle video playback
+    video.onloadedmetadata = function() {
+      video.play().catch(e => {
+        console.error('Video play error:', e);
+        showCameraFallback();
+      });
+    };
+    
+    video.onerror = function() {
+      console.error('Video error');
+      showCameraFallback();
+    };
+    
+    // Set timeout to check if video is actually playing
+    setTimeout(() => {
+      if (video.readyState <= 2) { // HAVE_CURRENT_DATA or less
+        console.warn('Video not playing, showing fallback');
+        showCameraFallback();
+      }
+    }, 2000);
+    
   })
   .catch(function(err) {
     console.error('Error accessing camera:', err);
@@ -1910,14 +2051,16 @@ function startCamera() {
 
 function showCameraFallback() {
   $('#cameraContainer').innerHTML = `
-    <div style="color: white; text-align: center; padding: 50px 20px;">
+    <div style="color: white; text-align: center; padding: 50px 20px; background: #333; border-radius: 12px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
       <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
-      <div>Tidak dapat mengakses kamera</div>
-      <div style="font-size: 14px; margin-top: 10px; margin-bottom: 20px;">
-        Kamera memerlukan HTTPS atau localhost.<br>
-        Gunakan opsi unggah foto di bawah.
+      <div style="margin-bottom: 15px; font-size: 18px;">Tidak dapat mengakses kamera</div>
+      <div style="font-size: 14px; margin-bottom: 20px; text-align: center;">
+        Kemungkinan penyebab:<br>
+        • Izin kamera belum diberikan<br>
+        • Browser tidak mendukung<br>
+        • Kamera sedang digunakan aplikasi lain
       </div>
-      <button class="btn" onclick="uploadPhotoFallback('${currentPhotoItemId}')">Unggah Foto</button>
+      <button class="btn" onclick="uploadPhotoFallback('${currentPhotoItemId}')">Unggah Foto dari File</button>
     </div>
   `;
   
