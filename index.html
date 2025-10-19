@@ -1725,55 +1725,32 @@ function generateQRCode(itemId) {
   });
 
   const qrContainer = $('#qrCodeContainer');
+  qrContainer.innerHTML = '<div style="text-align:center; padding:20px;">Generating QR Code...</div>';
+
+  // Clear previous QR code
+  qrContainer.innerHTML = '';
   
-  // Clear dan setup container
-  qrContainer.innerHTML = `
-    <div style="text-align: center; padding: 20px;">
-      <div id="qrLoading">Membuat QR Code...</div>
-      <div id="qrResult" style="display: none;"></div>
-    </div>
-  `;
-
-  // Coba generate QR code dengan timeout fallback
-  const qrTimeout = setTimeout(() => {
-    showQRCodeFallback(qrData, item);
-  }, 3000);
-
   try {
-    // Create canvas untuk QR code
+    // Create canvas element for QR code
     const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 200;
-    canvas.style.border = '1px solid #ddd';
-    canvas.style.borderRadius = '8px';
+    qrContainer.appendChild(canvas);
     
+    // Generate QR code using the library
     QRCode.toCanvas(canvas, qrData, {
-      width: 180,
-      margin: 1,
+      width: 200,
+      margin: 2,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
       }
     }, function(error) {
-      clearTimeout(qrTimeout);
-      
       if (error) {
-        console.error('QR Code error:', error);
-        showQRCodeFallback(qrData, item);
+        console.error('QR Code generation error:', error);
+        showQRCodeFallback(qrData, qrContainer, item);
         return;
       }
       
-      // Success - tampilkan QR code
-      const resultDiv = $('#qrResult');
-      const loadingDiv = $('#qrLoading');
-      
-      if (loadingDiv) loadingDiv.style.display = 'none';
-      if (resultDiv) resultDiv.style.display = 'block';
-      
-      qrContainer.innerHTML = '';
-      qrContainer.appendChild(canvas);
-      
-      // Tambahkan info produk
+      // Add product info below QR code
       const productInfo = document.createElement('div');
       productInfo.className = 'qr-product-info';
       productInfo.innerHTML = `
@@ -1781,44 +1758,36 @@ function generateQRCode(itemId) {
         <div class="qr-product-details">${item.type} • ${item.size}</div>
         <div class="qr-product-details">Supplier: ${item.supplier || 'N/A'}</div>
         <div class="qr-product-details">Kode: ${item.code || 'No Code'}</div>
-        <div class="qr-product-details" style="font-size: 10px; margin-top: 8px;">ID: ${item.id.substring(0, 8)}...</div>
       `;
       qrContainer.appendChild(productInfo);
     });
     
   } catch (error) {
-    clearTimeout(qrTimeout);
     console.error('QR Code generation failed:', error);
-    showQRCodeFallback(qrData, item);
+    showQRCodeFallback(qrData, qrContainer, item);
   }
 
   showModal('qrModal');
 }
 
-function showQRCodeFallback(qrData, item) {
-  const qrContainer = $('#qrCodeContainer');
-  
-  qrContainer.innerHTML = `
-    <div style="text-align: center; padding: 20px;">
-      <div style="font-size: 48px; margin-bottom: 15px;">📄</div>
-      <div style="font-weight: bold; margin-bottom: 15px;">Data QR Code</div>
-      
-      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
-        <div style="font-weight: bold; margin-bottom: 8px;">${item.name}</div>
-        <div style="color: #666; margin-bottom: 4px;">${item.type} • ${item.size}</div>
-        <div style="color: #666; font-size: 12px;">Supplier: ${item.supplier || 'N/A'}</div>
-        <div style="color: #666; font-size: 12px;">Kode: ${item.code || 'No Code'}</div>
+function showQRCodeFallback(qrData, container, item) {
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px; border: 2px dashed #ccc; border-radius: 10px; background: #f9f9f9;">
+      <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
+      <div style="font-weight: bold; margin-bottom: 10px;">QR Code Data</div>
+      <div style="margin-bottom: 5px; font-weight: bold;">${item.name}</div>
+      <div style="color: #64748b; font-size: 14px; margin-bottom: 10px;">${item.type} • ${item.size}</div>
+      <div style="background: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 10px; word-break: break-all;">
+        ${qrData}
       </div>
-      
-      <div style="background: white; padding: 12px; border-radius: 6px; border: 1px dashed #ccc;">
-        <div style="font-size: 11px; font-family: monospace; word-break: break-all; color: #666;">
-          ${qrData}
-        </div>
+      <div style="margin-top: 15px; font-size: 12px; color: #666;">
+        Data di atas dapat digunakan untuk generate QR code external
       </div>
-      
-      <div style="margin-top: 15px; font-size: 12px; color: #999;">
-        Salin data di atas untuk generate QR code external
-      </div>
+    </div>
+    <div class="qr-product-info">
+      <div class="qr-product-name">${item.name}</div>
+      <div class="qr-product-details">${item.type} • ${item.size}</div>
+      <div class="qr-product-details">Kode: ${item.code || 'No Code'}</div>
     </div>
   `;
 }
@@ -1837,7 +1806,6 @@ function printQRCode() {
 
 function openQRScanner() {
   console.log('🔍 openQRScanner called');
-  console.log('📱 Scanner container:', $('#scannerContainer'));
   
   showModal('scanModal');
   
@@ -1949,12 +1917,6 @@ function stopQRScanner() {
 /* ========= Camera Functions ========= */
 function takePhoto(itemId) {
   console.log('📷 takePhoto called with itemId:', itemId);
-  console.log('🔧 Camera support check:', {
-    hasMediaDevices: !!navigator.mediaDevices,
-    hasGetUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
-    isSecure: window.location.protocol === 'https:'
-  });
-  
   currentPhotoItemId = itemId;
   showModal('cameraModal');
   
@@ -2035,15 +1997,13 @@ function uploadPhotoFallback(itemId) {
     
     const reader = new FileReader();
     reader.onload = function(event) {
-      const imageData = event.target.result;
       const item = store.items.find(x => x.id === itemId);
-      
       if (item) {
-        item.image = imageData;
+        item.image = event.target.result;
         save();
         showSuccess("Foto berhasil diunggah");
         
-        // Refresh detail view jika terbuka
+        // Refresh detail view
         const currentItem = store.items.find(x => x.id === itemId);
         if (currentItem) {
           const currentIndex = currentList.findIndex(x => x.id === itemId);
@@ -2053,7 +2013,6 @@ function uploadPhotoFallback(itemId) {
         }
       }
     };
-    
     reader.readAsDataURL(file);
   };
   
@@ -2106,6 +2065,7 @@ function retakePhoto() {
       <canvas id="cameraCanvas" style="display: none;"></canvas>
     </div>
   `;
+  
   startCamera();
 }
 
@@ -2142,11 +2102,6 @@ function savePhoto() {
   closeCamera();
 }
 
-function closeCamera() {
-  stopCamera();
-  closeModal('cameraModal');
-}
-
 function stopCamera() {
   if (cameraStream) {
     cameraStream.getTracks().forEach(track => {
@@ -2154,6 +2109,11 @@ function stopCamera() {
     });
     cameraStream = null;
   }
+}
+
+function closeCamera() {
+  stopCamera();
+  closeModal('cameraModal');
 }
 
 // ========= FUNGSI UTAMA YANG SUDAH ADA =========
@@ -2772,24 +2732,17 @@ function openNAModal(inputId, title="Informasi Tanggal"){
   $("naTitle").textContent = title;
   showModal("naModal");
 }
-
-// Event listeners untuk modal N/A
-document.addEventListener('DOMContentLoaded', function() {
-  $("naYes").onclick = function() { 
-    // pilih tanggal
-    closeModal("naModal");
-    if(!_naTarget) return;
-    _naTarget.dataset.na=""; // hapus N/A
-    if(_naTarget.showPicker){ _naTarget.showPicker(); }
-  };
-  
-  $("naNo").onclick = function() { 
-    // set N/A
-    closeModal("naModal");
-    if(!_naTarget) return;
-    _naTarget.value=""; _naTarget.dataset.na="1";
-  };
-});
+$("naYes").onclick=()=>{ // pilih tanggal
+  closeModal("naModal");
+  if(!_naTarget) return;
+  _naTarget.dataset.na=""; // hapus N/A
+  if(_naTarget.showPicker){ _naTarget.showPicker(); }
+};
+$("naNo").onclick=()=>{ // set N/A
+  closeModal("naModal");
+  if(!_naTarget) return;
+  _naTarget.value=""; _naTarget.dataset.na="1";
+};
 
 /* ========= Router ========= */
 document.querySelectorAll("#tabs .tab").forEach(b=>{
@@ -2820,7 +2773,6 @@ document.querySelectorAll("#tabs .tab").forEach(b=>{
     setRoute(r);
   };
 });
-
 function setRoute(r){
   // Check if user is logged in
   if (!currentUser) {
@@ -2886,1669 +2838,1347 @@ function guardedRender(){
       for(let i=0;i<currentList.length;i++){
         const it=currentList[i];
         const key=`${it.name}|${it.type}|${it.size}`;
-        if(key===ctx.key){
-          target=it; idx=i; break;
-        }
+        if(key===ctx.key){ target=it; idx=i; break; }
       }
     } else {
-      target=store.items.find(x=>x.id===ctx.id);
-      idx=currentList.findIndex(x=>x.id===ctx.id);
+      for(let i=0;i<currentList.length;i++){
+        if(currentList[i].id===ctx.id){ target=currentList[i]; idx=i; break; }
+      }
     }
-    if(target){ openDetail(target, idx); }
-  }
-}
-
-/* ========= List ========= */
-function renderList(){
-  const r=route;
-  $("tabTitle").textContent = r==="masuk" ? "Belum Rakit" : r==="dirakit" ? "Sudah Rakit" : r==="terjual" ? "Terjual" : "Stok Kurang";
-  const btnAddAsm=$("btnAddAsm"), btnAddSell=$("btnAddSell");
-  btnAddAsm.classList.toggle("hidden",r!=="masuk");
-  btnAddSell.classList.toggle("hidden",r!=="dirakit");
-  
-  // Filter items berdasarkan route
-  let items = store.items;
-  if(r==="masuk"){ items = items.filter(i=>i.status==="masuk"); }
-  else if(r==="dirakit"){ items = items.filter(i=>i.status==="dirakit"); }
-  else if(r==="terjual"){ items = items.filter(i=>i.status==="terjual"); }
-  else if(r==="low"){ items = items.filter(i=>i.status==="masuk" && Number(i.totalQty||0) <= 2); }
-  
-  // Sort berdasarkan pilihan user
-  const sortKey = $("sortKey").value;
-  const sortDir = $("sortDir").textContent === "↑" ? 1 : -1;
-  
-  items.sort((a, b) => {
-    let valA = a[sortKey] || '';
-    let valB = b[sortKey] || '';
-    
-    // Handle numeric sorting
-    if (sortKey === 'totalQty') {
-      valA = Number(valA) || 0;
-      valB = Number(valB) || 0;
-    }
-    
-    if (valA < valB) return -1 * sortDir;
-    if (valA > valB) return 1 * sortDir;
-    return 0;
-  });
-  
-  // Filter berdasarkan pencarian
-  const searchTerm = $("searchBox").value.toLowerCase();
-  if (searchTerm) {
-    items = items.filter(i => 
-      i.name.toLowerCase().includes(searchTerm) ||
-      (i.type || '').toLowerCase().includes(searchTerm) ||
-      (i.size || '').toLowerCase().includes(searchTerm) ||
-      (i.supplier || '').toLowerCase().includes(searchTerm) ||
-      (i.code || '').toLowerCase().includes(searchTerm)
-    );
-  }
-  
-  currentList = items;
-  
-  // Apply pagination
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedItems = items.slice(startIndex, endIndex);
-  
-  let html = '';
-  paginatedItems.forEach(item => {
-    const imgSrc = item.image || "";
-    const qty = Number(item.totalQty || 0);
-    const isSelected = selectedIds.has(item.id);
-    
-    html += `
-      <div class="item ${qty === 0 ? "zero" : qty <= 2 ? "low" : ""} ${isSelected ? "selected" : ""}" 
-           onclick="openDetail(${JSON.stringify(item).replace(/"/g, '&quot;')}, ${currentList.indexOf(item)})">
-        <div class="thumb">
-          ${imgSrc ? `<img src="${imgSrc}" alt="${esc(item.name)}" onclick="event.stopPropagation(); addImageInline('${item.id}')">` : "📷"}
-        </div>
-        <div>
-          <div class="name">${esc(item.name)}</div>
-          <div class="sub">${esc(item.type||"")} • ${esc(item.size||"")}</div>
-          <div class="meta">${esc(item.supplier||"")} • ${item.arrivalDate||"N/A"} • ${item.code||"No Code"}</div>
-        </div>
-        <div class="checkwrap">
-          ${multi ? `<input type="checkbox" ${isSelected ? "checked" : ""} onclick="event.stopPropagation(); toggleSelect('${item.id}')">` : ""}
-          <div class="badge">${qty}</div>
-        </div>
-      </div>
-    `;
-  });
-  
-  if (!html) {
-    html = `<div class="item" style="text-align:center;padding:40px 20px;grid-template-columns:1fr">Tidak ada data.</div>`;
-  }
-  
-  $("list").innerHTML = html;
-  addPaginationControls(items.length);
-  
-  // Update low stock reminder
-  const lowReminder = $("lowReminder");
-  if (r === "masuk") {
-    const lowCount = store.items.filter(i => i.status === "masuk" && Number(i.totalQty||0) <= 2).length;
-    if (lowCount > 0) {
-      lowReminder.textContent = `⚠️ ${lowCount} item dengan stok menipis (≤ 2 unit).`;
-      lowReminder.classList.remove("hidden");
+    if(target) {
+      openDetail(target,idx);
     } else {
-      lowReminder.classList.add("hidden");
+      // Jika item tidak ditemukan (mungkin dihapus), tutup modal
+      closeModal("detailModal");
     }
-  } else {
-    lowReminder.classList.add("hidden");
   }
 }
 
-function addPaginationControls(totalItems) {
+/* ========= Render ========= */
+function render(){ 
+  if(route==="master"){ 
+    renderMaster();
+  } else if(route==="dashboard") {
+    renderDashboard();
+  } else if(route==="laporan") {
+    renderLaporan();
+  } else { 
+    renderList(); 
+  }
+}
+
+function renderList(){
+  const titles={masuk:"Belum Rakit",dirakit:"Sudah Rakit",terjual:"Terjual",low:"Stok Kurang"};
+  $("tabTitle").textContent=titles[route];
+  $("btnAdd").classList.toggle("hidden",route!=="masuk");
+  $("btnAddAsm").classList.toggle("hidden",route!=="dirakit");
+  $("btnAddSell").classList.toggle("hidden",route!=="terjual");
+
+  // Reminder stok kurang (masuk)
+  const low=store.items.filter(i=>i.status==="masuk"&&Number(i.totalQty||0)<=2);
+  if(route!=="master" && route!=="laporan" && low.length){ 
+    $("lowReminder").innerHTML=`Ada unit sepeda dengan stok yang sudah menipis. <a href="#" onclick="setRoute('low');return false;">Klik di sini</a> untuk melihat.`; 
+    $("lowReminder").classList.remove("hidden"); 
+  } else {
+    $("lowReminder").classList.add("hidden"); 
+  }
+
+  let arr=[];
+  if(route==="low") {
+    arr=store.items.filter(i=>i.status==="masuk"&&Number(i.totalQty||0)<=2);
+  } else if(route==="dirakit"){
+    const map=new Map();
+    store.items.filter(i=>i.status==="dirakit").forEach(i=>{
+      const key=`${i.name}|${i.type}|${i.size}`;
+      if(!map.has(key)) {
+        map.set(key,{
+          ...i,
+          groupIds:[i.id],
+          totalQty:Number(i.totalQty||0),
+          assembleLogs:[...(i.assembleLogs||[])]
+        });
+      } else {
+        const g=map.get(key);
+        g.groupIds.push(i.id);
+        g.totalQty+=Number(i.totalQty||0);
+        g.assembleLogs.push(...(i.assembleLogs||[])); 
+        if(!g.image&&i.image) g.image=i.image;
+      }
+    });
+    arr=[...map.values()];
+  } else {
+    arr=store.items.filter(i=>i.status===route);
+  }
+
+  currentList=arr;
+
+  const q=($("searchBox").value||"").toLowerCase();
+  arr=arr.filter(i=>{
+    const code=genCode(i.supplier,i.arrivalDate)||"";
+    return `${i.name} ${i.type} ${i.size} ${i.supplier||""} ${code}`.toLowerCase().includes(q);
+  });
+
+  const asc=$("sortDir").dataset.desc!=="1", key=$("sortKey").value;
+  arr.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(key==="totalQty"){
+      va=Number(va)||0;
+      vb=Number(vb)||0;
+      return asc?va-vb:vb-va;
+    }
+    va=(va||"").toString(); 
+    vb=(vb||"").toString();
+    return asc?va.localeCompare(vb):vb.localeCompare(va);
+  });
+
+  // Pagination calculation
+  const totalItems = arr.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   
-  let html = '';
+  // Validasi currentPage
+  if (currentPage > totalPages && totalPages > 0) {
+    currentPage = totalPages;
+  }
+  if (currentPage < 1) {
+    currentPage = 1;
+  }
   
-  // Info pagination
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedItems = arr.slice(startIndex, startIndex + itemsPerPage);
+
+  const list=$("list"); 
+  list.innerHTML="";
+  
+  paginatedItems.forEach((it,idx)=>{
+    const globalIndex = startIndex + idx;
+    const qty=Number(it.totalQty||0);
+    const card=document.createElement("div"); 
+    card.className="item";
+    
+    if((route==="masuk"||route==="low")){ 
+      if(qty===0) card.classList.add("zero"); 
+      else if(qty<3) card.classList.add("low"); 
+    }
+
+    // kanan: checkbox (mode multi)
+    const right=document.createElement("div");
+    right.className="checkwrap";
+    
+    if(multi){
+      const cb=document.createElement("input"); 
+      cb.type="checkbox";
+      cb.checked = selectedIds.has(it.id);
+      cb.onclick=(e)=>{ 
+        e.stopPropagation(); 
+        if(cb.checked) {
+          selectedIds.add(it.id);
+        } else {
+          selectedIds.delete(it.id);
+        } 
+      };
+      right.appendChild(cb);
+      
+      // MODE MULTI: klik kartu = toggle centang, TIDAK buka detail
+      card.onclick=(e)=>{ 
+        if(e.target!==cb){ 
+          cb.checked=!cb.checked; 
+          if(cb.checked) {
+            selectedIds.add(it.id);
+          } else {
+            selectedIds.delete(it.id);
+          }
+        } 
+      };
+    } else {
+      card.onclick=()=>openDetail(it,globalIndex);
+    }
+
+    const img=it.image?`<img src="${it.image}">`:`<span class="small">Tanpa Gambar</span>`;
+    const code=genCode(it.supplier,it.arrivalDate)||"-";
+    const meta= route==="masuk"? `Tgl Datang: ${it.arrivalDate||"N/A"} • Stok: ${qty}`:
+                route==="dirakit"? `Tersedia: ${qty} • Log rakit: ${(it.assembleLogs||[]).length}`:
+                route==="terjual"? `Total terjual: ${(it.sellLogs||[]).reduce((s,a)=>s+Number(a.qty||0),0)}`:`Stok: ${qty}`;
+
+    card.innerHTML=`
+      <div class="thumb">${img}</div>
+      <div>
+        <div class="name">${it.name}</div>
+        <div class="sub">${it.type||"-"} • ${it.size||"-"}</div>
+        <div class="meta">ID: ${code} • Supplier: ${it.supplier||"N/A"} • Kemasan: ${it.pack||"-"}</div>
+        <div class="meta mt8">${meta}</div>
+      </div>`;
+    card.appendChild(right);
+    list.appendChild(card);
+  });
+
+  // Add pagination controls
+  addPaginationControls(totalItems, totalPages, 'list');
+}
+
+function addPaginationControls(totalItems, totalPages, type) {
+  // Remove existing pagination if any
+  const existingPagination = $(`${type}Pagination`);
+  if (existingPagination) {
+    existingPagination.remove();
+  }
+
+  if (totalPages <= 1 && totalItems <= itemsPerPage) {
+    return;
+  }
+
+  const pagination = document.createElement('div');
+  pagination.id = `${type}Pagination`;
+  pagination.className = 'pagination';
+
+  const startItem = ((currentPage - 1) * itemsPerPage) + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-  
-  html += `<div class="pagination-info">Menampilkan ${startItem}-${endItem} dari ${totalItems} item</div>`;
-  
-  // Page size selector
-  html += `
+
+  pagination.innerHTML = `
+    <div class="pagination-info">Menampilkan ${startItem}-${endItem} dari ${totalItems} item</div>
     <div class="page-size">
-      <label>Per halaman:</label>
-      <select onchange="changeItemsPerPage(this.value)">
+      <label>Item per halaman:</label>
+      <select onchange="changeItemsPerPage(this.value, '${type}')">
         <option value="10" ${itemsPerPage === 10 ? 'selected' : ''}>10</option>
         <option value="25" ${itemsPerPage === 25 ? 'selected' : ''}>25</option>
         <option value="50" ${itemsPerPage === 50 ? 'selected' : ''}>50</option>
-        <option value="100" ${itemsPerPage === 100 ? 'selected' : ''}>100</option>
       </select>
     </div>
+    <button onclick="goToPage(1, '${type}')" ${currentPage === 1 ? 'disabled' : ''}>◀◀</button>
+    <button onclick="goToPage(${currentPage - 1}, '${type}')" ${currentPage === 1 ? 'disabled' : ''}>◀</button>
+    <span style="padding: 0 10px;">Halaman ${currentPage} dari ${totalPages}</span>
+    <button onclick="goToPage(${currentPage + 1}, '${type}')" ${currentPage === totalPages ? 'disabled' : ''}>▶</button>
+    <button onclick="goToPage(${totalPages}, '${type}')" ${currentPage === totalPages ? 'disabled' : ''}>▶▶</button>
   `;
-  
-  // Page navigation
-  html += `
-    <button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>⏮️</button>
-    <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>⬅️</button>
-  `;
-  
-  // Page numbers (show max 5 pages)
-  const startPage = Math.max(1, currentPage - 2);
-  const endPage = Math.min(totalPages, startPage + 4);
-  
-  for (let i = startPage; i <= endPage; i++) {
-    html += `<button onclick="goToPage(${i})" ${i === currentPage ? 'class="active"' : ''}>${i}</button>`;
-  }
-  
-  html += `
-    <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>➡️</button>
-    <button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>⏭️</button>
-  `;
-  
-  $("listPagination").innerHTML = html;
+
+  const container = type === 'history' ? $('hisTable').parentNode : $('list');
+  container.parentNode.insertBefore(pagination, container.nextSibling);
 }
 
-function changeItemsPerPage(newSize) {
-  itemsPerPage = parseInt(newSize);
-  currentPage = 1; // Reset to first page
+function changeItemsPerPage(value, type) {
+  itemsPerPage = parseInt(value);
+  currentPage = 1;
   renderList();
 }
 
-function goToPage(page) {
-  const totalPages = Math.ceil(currentList.length / itemsPerPage);
-  if (page >= 1 && page <= totalPages) {
-    currentPage = page;
-    renderList();
-  }
-}
-
-/* ========= Multi Select ========= */
-function toggleMulti(){
-  multi=!multi; selectedIds.clear();
-  $("btnMulti").textContent = multi ? "Batal Pilih" : "Pilih Multiple";
-  $("btnMulti").classList.toggle("ghost", !multi);
-  $("btnMassEdit").classList.toggle("hidden", !multi || selectedIds.size === 0);
-  $("btnMassDelete").classList.toggle("hidden", !multi || selectedIds.size === 0);
-  $("btnMassCancel").classList.toggle("hidden", !multi);
+function goToPage(page, type) {
+  currentPage = page;
   renderList();
 }
 
-function toggleSelect(id){
-  if(selectedIds.has(id)){ selectedIds.delete(id); }
-  else{ selectedIds.add(id); }
-  
-  $("btnMassEdit").classList.toggle("hidden", selectedIds.size === 0);
-  $("btnMassDelete").classList.toggle("hidden", selectedIds.size === 0);
+/* ========= Multi select & Mass edit/delete ========= */
+$("btnMulti").onclick=()=>{
+  multi=true;
+  $("btnMulti").classList.add("hidden");
+  $("btnMassEdit").classList.remove("hidden");
+  $("btnMassDelete").classList.remove("hidden");
+  $("btnMassCancel").classList.remove("hidden");
   renderList();
-}
+};
 
-function massEdit(){
-  const ids = Array.from(selectedIds);
-  if(ids.length === 0){ return; }
-  
-  buildMasterOptions("meSup","meType","meSize","mePack");
-  showModal("massEditModal");
-  
-  $("meApply").onclick = function(){
-    const sup = $("meSup").value;
-    const type = $("meType").value;
-    const size = $("meSize").value;
-    const pack = $("mePack").value;
-    
-    let changed = 0;
-    store.items.forEach(item => {
-      if(selectedIds.has(item.id)){
-        let modified = false;
-        if(sup && item.supplier !== sup){ item.supplier = sup; modified = true; }
-        if(type && item.type !== type){ item.type = type; modified = true; }
-        if(size && item.size !== size){ item.size = size; modified = true; }
-        if(pack && item.pack !== pack){ item.pack = pack; modified = true; }
-        if(modified){ changed++; }
-      }
-    });
-    
-    if(changed > 0){
-      save();
-      addHistory('mass-edit', { count: changed, fields: {sup,type,size,pack} });
-      showSuccess(`${changed} item berhasil diedit massal`);
-    }
-    
-    toggleMulti(); // keluar dari mode multi
-    closeModal("massEditModal");
-  };
-}
+$("btnMassCancel").onclick=()=>{
+  multi=false;
+  selectedIds.clear();
+  $("btnMulti").classList.remove("hidden");
+  $("btnMassEdit").classList.add("hidden");
+  $("btnMassDelete").classList.add("hidden");
+  $("btnMassCancel").classList.add("hidden");
+  renderList();
+};
 
-function massDelete(){
-  const ids = Array.from(selectedIds);
-  if(ids.length === 0){ return; }
-  
-  if(!confirm(`Hapus ${ids.length} item terpilih?`)){ return; }
-  
-  store.items = store.items.filter(x => !selectedIds.has(x.id));
-  
-  save();
-  addHistory('mass-delete', { count: ids.length });
-  showSuccess(`${ids.length} item berhasil dihapus`);
-  
-  toggleMulti(); // keluar dari mode multi
-}
-
-/* ========= Detail View ========= */
-function openDetail(item, index){
-  currentIndex = index;
-  
-  // Simpan context untuk guarded render
-  _detailCtx = { 
-    id: item.id, 
-    key: `${item.name}|${item.type}|${item.size}`,
-    route: route
-  };
-  
-  // Build detail content
-  const imgSrc = item.image || "";
-  const qty = Number(item.totalQty || 0);
-  const statusText = item.status === "masuk" ? "Belum Rakit" : item.status === "dirakit" ? "Sudah Rakit" : "Terjual";
-  
-  let html = `
-    <div class="detail-img" onclick="addImageInline('${item.id}')">
-      ${imgSrc ? `<img src="${imgSrc}" alt="${esc(item.name)}">` : `<button class="btn" onclick="takePhoto('${item.id}')">Ambil Foto</button>`}
-    </div>
-    
-    <div class="detail-title">${esc(item.name)}</div>
-    <div class="detail-sub">${esc(item.type||"")} • ${esc(item.size||"")}</div>
-    <div class="detail-stock">Status: ${statusText} • Stok: <span class="badge">${qty}</span></div>
-    
-    <div class="readLine"><strong>Supplier:</strong> ${esc(item.supplier||"N/A")}</div>
-    <div class="readLine"><strong>Tanggal Kedatangan:</strong> ${item.arrivalDate||"N/A"}</div>
-    <div class="readLine"><strong>Kemasan:</strong> ${esc(item.pack||"N/A")}</div>
-    <div class="readLine"><strong>Kode/ID:</strong> ${item.code||"No Code"}</div>
-    
-    ${item.colors && item.colors.length > 0 ? `<div class="readLine"><strong>Warna:</strong> ${chips(item.colors)}</div>` : ""}
-    
-    <div class="readLine"><strong>Lokasi:</strong> ${chips(item.locations, "name", "qty")}</div>
-  `;
-  
-  // Log perakitan
-  if(item.assembleLogs && item.assembleLogs.length > 0){
-    html += `<div class="section mt8"><h4>Riwayat Perakitan</h4>`;
-    item.assembleLogs.forEach(log => {
-      html += `<div class="readLine">${log.date||"N/A"} - ${log.qty||0} unit - ${esc(log.employee||"N/A")}</div>`;
-    });
-    html += `</div>`;
+$("btnMassDelete").onclick=async ()=>{
+  if(!selectedIds.size) {
+    return alert("Pilih item dulu.");
   }
   
-  // Log penjualan
-  if(item.sellLogs && item.sellLogs.length > 0){
-    html += `<div class="section mt8"><h4>Riwayat Penjualan</h4>`;
-    item.sellLogs.forEach(log => {
-      html += `<div class="readLine">${log.date||"N/A"} - ${log.qty||0} unit</div>`;
-    });
-    html += `</div>`;
-  }
-  
-  // Action buttons
-  html += `<div class="row mt16">`;
-  
-  // Edit button - hanya untuk admin dan staff
-  if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
-    html += `<button class="btn" onclick="secureEdit('${item.id}')">Edit</button>`;
-  }
-  
-  // QR Code button
-  html += `<button class="btn ghost" onclick="generateQRCode('${item.id}')">QR Code</button>`;
-  
-  // Navigation buttons
-  html += `<button class="btn ghost" onclick="navDetail(-1)" ${index <= 0 ? "disabled" : ""}>← Sebelumnya</button>`;
-  html += `<button class="btn ghost" onclick="navDetail(1)" ${index >= currentList.length - 1 ? "disabled" : ""}>Selanjutnya →</button>`;
-  
-  // Delete button - hanya untuk admin dan staff
-  if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
-    html += `<button class="btn red" onclick="secureDelete('${item.id}')">Hapus</button>`;
-  }
-  
-  html += `</div>`;
-  
-  $("detailBody").innerHTML = html;
-  showModal("detailModal");
-}
-
-function navDetail(delta){
-  const newIndex = currentIndex + delta;
-  if(newIndex < 0 || newIndex >= currentList.length){ return; }
-  
-  const item = currentList[newIndex];
-  if(item){
-    openDetail(item, newIndex);
-  }
-}
-
-function secureEdit(itemId){
-  // Check edit permission
-  if (!currentUser || !ROLE_PERMISSIONS[currentUser.role].includes('edit')) {
-    alert('Anda tidak memiliki izin untuk mengedit item.');
-    return;
-  }
-  
-  closeModal("detailModal");
-  setTimeout(() => openEdit(itemId), 300);
-}
-
-function secureDelete(itemId){
   // Check delete permission
-  if (!currentUser || !ROLE_PERMISSIONS[currentUser.role].includes('delete')) {
-    alert('Anda tidak memiliki izin untuk menghapus item.');
+  if (!ROLE_PERMISSIONS[currentUser.role].includes('delete')) {
+    toast('Anda tidak memiliki izin untuk menghapus item');
     return;
   }
   
-  if(!confirm("Hapus item ini?")){ return; }
+  const ok=await askPass("Masukkan password:");
+  if(!ok) return;
   
-  const item = store.items.find(x => x.id === itemId);
-  if(item){
-    store.items = store.items.filter(x => x.id !== itemId);
-    save();
-    addHistory('delete', { name: item.name, type: item.type, size: item.size });
-    showSuccess("Item berhasil dihapus");
-    closeModal("detailModal");
-  }
+  if(!confirm("Hapus item terpilih?")) return;
+  
+  const removed=[];
+  store.items=store.items.filter(i=>{ 
+    if(selectedIds.has(i.id)) {
+      removed.push(i); 
+      return false;
+    } 
+    return true; 
+  });
+  
+  addHistory('hapus',{qty:removed.length}, {type:"restore-items", payload:removed});
+  selectedIds.clear(); 
+  
+  // Reset ke halaman 1 setelah hapus massal
+  currentPage = 1;
+  save(); 
+  showSuccess("Item terpilih berhasil dihapus");
+};
+
+$("btnMassEdit").onclick=()=>{ 
+  if(!selectedIds.size) return alert("Pilih item dulu."); 
+  buildMasterOptionsMass(); 
+  showModal("massEditModal"); 
+};
+
+function buildMasterOptionsMass(){
+  $("meSup").innerHTML=`<option value="">(kosong)</option>`+store.suppliers.map(s=>`<option>${s}</option>`).join("");
+  $("meType").innerHTML=`<option value="">(kosong)</option>`+store.types.map(s=>`<option>${s}</option>`).join("");
+  $("meSize").innerHTML=`<option value="">(kosong)</option>`+store.sizes.map(s=>`<option>${s}</option>`).join("");
+  $("mePack").innerHTML=`<option value="">(kosong)</option>`+store.packs.map(s=>`<option>${s}</option>`).join("");
 }
 
-function addImageInline(itemId){
-  const item = store.items.find(x => x.id === itemId);
-  if(!item){ return; }
+$("meApply").onclick=async ()=>{ 
+  const ok=await askPass("Masukkan password:"); 
+  if(!ok) return; 
   
-  takePhoto(itemId);
-}
+  const sup=$("meSup").value,
+        type=$("meType").value,
+        size=$("meSize").value,
+        pack=$("mePack").value;
+        
+  store.items.forEach(i=>{ 
+    if(selectedIds.has(i.id)){ 
+      if(sup) i.supplier=sup; 
+      if(type) i.type=type; 
+      if(size) i.size=size; 
+      if(pack) i.pack=pack; 
+      i.code=genCode(i.supplier,i.arrivalDate); 
+    } 
+  });
+  
+  closeModal("massEditModal"); 
+  $("btnMassCancel").onclick(); 
+  save(); 
+  showSuccess("Perubahan massal berhasil diterapkan");
+};
 
 /* ========= Add/Edit Item ========= */
+$("btnAdd").onclick=()=>openAdd();
+
 function openAdd(){
-  // Check add permission
-  if (!currentUser || !ROLE_PERMISSIONS[currentUser.role].includes('add')) {
-    alert('Anda tidak memiliki izin untuk menambah item.');
-    return;
-  }
-  
-  editingId = null;
-  $("addTitle").textContent = "Tambah Item";
-  buildMasterOptions("fSup","fType","fSize","fPack","fAsmEmp");
-  
-  // Reset form
-  ["fName","fQty","fArrive","fAsmDate","fImg"].forEach(id => $(id).value = "");
-  $("fStatus").value = "masuk";
-  $("colorWrap").innerHTML = "";
-  $("locWrap").innerHTML = "";
-  
-  // Add default location row
-  addLocRow();
-  
+  editingId=null; 
+  buildMasterOptions(); 
+  fillNameSuggest();
+  $("addTitle").textContent="Tambah Item";
+  ["fName","fQty"].forEach(id=>$(id).value="");
+  ["fSup","fType","fSize","fPack","fStatus","fAsmEmp"].forEach(id=>$(id).value="");
+  ["fArrive","fAsmDate"].forEach(id=>{ $(id).value=""; $(id).dataset.na=""; });
+  $("asmRow").classList.add("hidden");
+  $("colorWrap").innerHTML=""; 
+  $("locWrap").innerHTML=""; 
+  addLocRow(); // minimal 1 baris lokasi
+  $("fImg").value="";
+  bindBtnSaveOnce(saveNewItem);
   showModal("addModal");
-  bindBtnSaveOnce();
 }
 
-function openEdit(itemId){
-  // Check edit permission
-  if (!currentUser || !ROLE_PERMISSIONS[currentUser.role].includes('edit')) {
-    alert('Anda tidak memiliki izin untuk mengedit item.');
-    return;
-  }
-  
-  const item = store.items.find(x => x.id === itemId);
-  if(!item){ return; }
-  
-  editingId = itemId;
-  $("addTitle").textContent = "Edit Item";
-  buildMasterOptions("fSup","fType","fSize","fPack","fAsmEmp");
-  
-  // Fill form
-  $("fName").value = item.name || "";
-  $("fSup").value = item.supplier || "";
-  $("fType").value = item.type || "";
-  $("fSize").value = item.size || "";
-  $("fPack").value = item.pack || "";
-  $("fStatus").value = item.status || "masuk";
-  $("fQty").value = item.totalQty || 1;
-  $("fArrive").value = item.arrivalDate || "";
-  if(item.arrivalDate === "N/A"){ $("fArrive").dataset.na = "1"; $("fArrive").value = ""; }
-  
-  // Colors
-  $("colorWrap").innerHTML = "";
-  if(item.colors && item.colors.length > 0){
-    item.colors.forEach(c => addColorRow(c.color, c.qty));
-  }
-  
-  // Locations
-  $("locWrap").innerHTML = "";
-  if(item.locations && item.locations.length > 0){
-    item.locations.forEach(l => addLocRow(l.name, l.qty));
-  } else {
-    addLocRow();
-  }
-  
-  showModal("addModal");
-  bindBtnSaveOnce();
+function bindBtnSaveOnce(handler){
+  const btn=$("btnSave");
+  const clone=btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone,btn);
+  clone.id="btnSave";
+  clone.onclick=handler;
 }
 
-function buildMasterOptions(supId, typeId, sizeId, packId, empId){
-  // Suppliers
-  if(supId){
-    const supSel = $(supId);
-    supSel.innerHTML = '<option value="">-- pilih --</option>';
-    store.suppliers.forEach(s => {
-      supSel.innerHTML += `<option value="${s}">${s}</option>`;
-    });
-  }
-  
-  // Types
-  if(typeId){
-    const typeSel = $(typeId);
-    typeSel.innerHTML = '<option value="">-- pilih --</option>';
-    store.types.forEach(t => {
-      typeSel.innerHTML += `<option value="${t}">${t}</option>`;
-    });
-  }
-  
-  // Sizes
-  if(sizeId){
-    const sizeSel = $(sizeId);
-    sizeSel.innerHTML = '<option value="">-- pilih --</option>';
-    store.sizes.forEach(s => {
-      sizeSel.innerHTML += `<option value="${s}">${s}</option>`;
-    });
-  }
-  
-  // Packs
-  if(packId){
-    const packSel = $(packId);
-    packSel.innerHTML = '<option value="">-- pilih --</option>';
-    store.packs.forEach(p => {
-      packSel.innerHTML += `<option value="${p}">${p}</option>`;
-    });
-  }
-  
-  // Employees
-  if(empId){
-    const empSel = $(empId);
-    empSel.innerHTML = '<option value="">-- pilih / N/A --</option>';
-    store.employees.forEach(e => {
-      empSel.innerHTML += `<option value="${e}">${e}</option>`;
-    });
-  }
+function buildMasterOptions(){
+  $("fSup").innerHTML=`<option value="">-- pilih --</option>`+store.suppliers.map(s=>`<option>${s}</option>`).join("");
+  $("fType").innerHTML=`<option value="">-- pilih --</option>`+store.types.map(s=>`<option>${s}</option>`).join("");
+  $("fSize").innerHTML=`<option value="">-- pilih --</option>`+store.sizes.map(s=>`<option>${s}</option>`).join("");
+  $("fPack").innerHTML=`<option value="">-- pilih --</option>`+store.packs.map(s=>`<option>${s}</option>`).join("");
+  $("fAsmEmp").innerHTML=`<option value="">-- pilih / N/A --</option>`+store.employees.map(s=>`<option>${s}</option>`).join("");
 }
 
-function fillNameSuggest(partial){
-  const list = $("acList");
-  if(!partial.trim()){
-    list.innerHTML = ""; list.style.display = "none"; return;
+function fillNameSuggest(){
+  const box=$("fName"), list=$("acList");
+  const names=[...new Set(store.items.map(i=>i.name))].sort();
+  
+  function show(){
+    const q=(box.value||"").toLowerCase().trim();
+    if(q.length<2){ 
+      list.style.display="none"; 
+      return; 
+    }
+    
+    const cand=names.filter(n=>n.toLowerCase().includes(q)).slice(0,15);
+    if(!cand.length){ 
+      list.style.display="none"; 
+      return; 
+    }
+    
+    list.innerHTML=cand.map(n=>`<div class="ac-item">${n}</div>`).join("");
+    list.style.display="block";
+    
+    list.querySelectorAll(".ac-item").forEach(div=>{
+      div.onclick=()=>{ 
+        box.value=div.textContent; 
+        list.style.display="none"; 
+        box.focus(); 
+        box.setSelectionRange(box.value.length,box.value.length); 
+      };
+    });
   }
   
-  const matches = store.items
-    .map(x => x.name)
-    .filter((n, i, a) => a.indexOf(n) === i) // unique
-    .filter(n => n.toLowerCase().includes(partial.toLowerCase()))
-    .slice(0, 8);
-  
-  if(matches.length === 0){
-    list.innerHTML = ""; list.style.display = "none"; return;
-  }
-  
-  list.innerHTML = matches.map(n => `<div class="ac-item">${esc(n)}</div>`).join("");
-  list.style.display = "block";
-  
-  list.querySelectorAll(".ac-item").forEach(el => {
-    el.onclick = () => {
-      $("fName").value = el.textContent;
-      list.style.display = "none";
-    };
-  });
+  box.oninput=show; 
+  box.onfocus=show; 
+  box.onblur=()=>setTimeout(()=>list.style.display="none",120);
 }
 
-function addColorRow(color="", qty=1){
-  const wrap = $("colorWrap");
-  const id = "color_" + Date.now();
-  wrap.innerHTML += `
-    <div class="row mt8">
-      <input class="input" placeholder="Warna" value="${color}" style="flex:1">
-      <input type="number" class="input" placeholder="Qty" value="${qty}" min="1" style="width:80px" oninput="min1(this)">
-      <button class="btn ghost small" onclick="this.parentElement.remove()">Hapus</button>
-    </div>
+$("fStatus").onchange=()=>{
+  $("asmRow").classList.toggle("hidden",$("fStatus").value!=="dirakit");
+};
+
+function addColorRow(c="",q=""){
+  const row=document.createElement("div"); 
+  row.className="row mt8"; 
+  row.innerHTML=`
+    <input class="input" placeholder="Warna" value="${c}">
+    <input type="number" class="input" placeholder="Jumlah" min="0" value="${q}" style="width:100px">
+    <button class="btn ghost small" onclick="this.parentNode.remove()">✕</button>
   `;
+  $("colorWrap").appendChild(row);
 }
 
-function addLocRow(loc="", qty=1){
-  const wrap = $("locWrap");
-  const id = "loc_" + Date.now();
-  
-  // Default to first location if empty
-  if(!loc && store.locations.length > 0){
-    loc = store.locations[0];
-  }
-  
-  let locOpts = store.locations.map(l => `<option value="${l}" ${l===loc?"selected":""}>${l}</option>`).join("");
-  
-  wrap.innerHTML += `
-    <div class="row mt8">
-      <select class="input" style="flex:1">
-        <option value="">-- pilih lokasi --</option>
-        ${locOpts}
-      </select>
-      <input type="number" class="input" placeholder="Qty" value="${qty}" min="0" style="width:80px" oninput="guardLocRow(this)">
-      <button class="btn ghost small" onclick="this.parentElement.remove(); guardAllLocToQty()">Hapus</button>
-    </div>
+function addLocRow(loc="",q=""){
+  const row=document.createElement("div"); 
+  row.className="row mt8"; 
+  row.innerHTML=`
+    <select class="input">${store.locations.map(l=>`<option ${l===loc?"selected":""}>${l}</option>`).join("")}</select>
+    <input type="number" class="input" placeholder="Jumlah" min="0" value="${q}" style="width:100px">
+    <button class="btn ghost small" onclick="this.parentNode.remove()">✕</button>
   `;
+  $("locWrap").appendChild(row);
 }
 
 function guardAllLocToQty(){
-  const totalQty = parseInt($("fQty").value || "0");
-  if(isNaN(totalQty) || totalQty < 1){ return; }
-  
-  const rows = $("locWrap").children;
-  let currentTotal = 0;
-  
-  // Hitung total current
-  for(let row of rows){
-    const qtyInput = row.querySelector('input[type="number"]');
-    currentTotal += parseInt(qtyInput.value || "0");
+  const totalLocQty=Array.from($("locWrap").children).reduce((sum,row)=>sum+(parseInt(row.querySelector("input").value)||0),0);
+  const totalQty=parseInt($("fQty").value)||1;
+  if(totalLocQty>totalQty){
+    const delta=totalLocQty-totalQty;
+    $("fQty").value=totalLocQty;
+    toast(`Jumlah lokasi disesuaikan (+${delta})`);
   }
-  
-  // Jika current total melebihi totalQty, kurangi row terakhir
-  if(currentTotal > totalQty && rows.length > 0){
-    const lastRow = rows[rows.length-1];
-    const qtyInput = lastRow.querySelector('input[type="number"]');
-    const maxAllowed = totalQty - (currentTotal - parseInt(qtyInput.value || "0"));
-    qtyInput.value = Math.max(0, maxAllowed);
-  }
-}
-
-function guardLocRow(inputEl){
-  min1(inputEl); // pastikan minimal 1
-  guardAllLocToQty();
-}
-
-function totalQtyInput(){
-  const rows = $("locWrap").children;
-  let total = 0;
-  for(let row of rows){
-    const qtyInput = row.querySelector('input[type="number"]');
-    total += parseInt(qtyInput.value || "0");
-  }
-  return total;
-}
-
-function collectColors(){
-  const rows = $("colorWrap").children;
-  const colors = [];
-  for(let row of rows){
-    const colorInput = row.querySelector('input[type="text"]');
-    const qtyInput = row.querySelector('input[type="number"]');
-    const color = colorInput.value.trim();
-    const qty = parseInt(qtyInput.value || "0");
-    if(color && qty > 0){
-      colors.push({color, qty});
-    }
-  }
-  return colors;
-}
-
-function collectLocs(){
-  const rows = $("locWrap").children;
-  const locs = [];
-  for(let row of rows){
-    const locSelect = row.querySelector('select');
-    const qtyInput = row.querySelector('input[type="number"]');
-    const loc = locSelect.value;
-    const qty = parseInt(qtyInput.value || "0");
-    if(loc && qty > 0){
-      locs.push({name: loc, qty});
-    }
-  }
-  return locs;
-}
-
-function listMissingAddItem(){
-  const req = ["fName","fSup","fType","fSize","fPack","fStatus","fQty"];
-  const missing = [];
-  for(let id of req){
-    const el = $(id);
-    if(!el.value.trim()){ 
-      missing.push(el.previousElementSibling.textContent.replace(" *","").trim()); 
-    }
-  }
-  
-  // Cek lokasi
-  const locs = collectLocs();
-  if(locs.length === 0){
-    missing.push("minimal 1 lokasi");
-  }
-  
-  // Cek total quantity lokasi = totalQty
-  const totalLocQty = locs.reduce((sum, l) => sum + l.qty, 0);
-  const totalQty = parseInt($("fQty").value || "0");
-  if(totalLocQty !== totalQty){
-    missing.push(`total quantity lokasi (${totalLocQty}) harus sama dengan jumlah unit (${totalQty})`);
-  }
-  
-  return missing;
-}
-
-function bindBtnSaveOnce(){
-  $("btnSave").onclick = function(){
-    if(editingId === null){
-      saveNewItem();
-    } else {
-      saveEditItem();
-    }
-  };
 }
 
 function saveNewItem(){
-  const missing = listMissingAddItem();
-  if(missing.length > 0){
-    alert("Lengkapi data:\n" + missing.join("\n"));
-    return;
+  const name=($("fName").value||"").trim();
+  const supplier=$("fSup").value;
+  const type=$("fType").value;
+  const size=$("fSize").value;
+  const pack=$("fPack").value;
+  const status=$("fStatus").value;
+  const totalQty=parseInt($("fQty").value)||0;
+  
+  if(!name||!supplier||!type||!size||!pack||!status||!totalQty){
+    return alert("Isi semua field wajib.");
   }
+
+  // Validasi jumlah lokasi = totalQty
+  const locs=Array.from($("locWrap").children).map(row=>{
+    const loc=row.querySelector("select").value;
+    const qty=parseInt(row.querySelector("input").value)||0;
+    return {name:loc,qty:qty};
+  }).filter(x=>x.name&&x.qty>0);
   
-  const item = {
-    id: uid(),
-    status: $("fStatus").value,
-    name: $("fName").value.trim(),
-    supplier: $("fSup").value,
-    type: $("fType").value,
-    size: $("fSize").value,
-    pack: $("fPack").value,
-    arrivalDate: $("fArrive").dataset.na ? "N/A" : ($("fArrive").value || "N/A"),
-    totalQty: parseInt($("fQty").value),
-    colors: collectColors(),
-    locations: collectLocs(),
-    image: null,
-    assembleLogs: [],
-    sellLogs: []
-  };
+  const totalLocQty=locs.reduce((sum,x)=>sum+x.qty,0);
+  if(totalLocQty!==totalQty){
+    return alert(`Total kuantitas lokasi (${totalLocQty}) harus sama dengan jumlah unit total (${totalQty}).`);
+  }
+
+  const colors=Array.from($("colorWrap").children).map(row=>{
+    const color=(row.querySelector("input").value||"").trim();
+    const qty=parseInt(row.querySelectorAll("input")[1].value)||0;
+    return {color,qty};
+  }).filter(x=>x.color&&x.qty>0);
   
-  // Generate code
-  item.code = genCode(item.supplier, item.arrivalDate);
-  
-  // Handle image upload
-  const imgFile = $("fImg").files[0];
-  if(imgFile){
-    const reader = new FileReader();
-    reader.onload = function(e){
-      item.image = e.target.result;
-      finalizeAdd(item);
+  const totalColorQty=colors.reduce((sum,x)=>sum+x.qty,0);
+  if(totalColorQty>totalQty){
+    return alert(`Total kuantitas warna (${totalColorQty}) tidak boleh lebih dari jumlah unit total (${totalQty}).`);
+  }
+
+  const arrivalDate=$("fArrive").dataset.na?"N/A":($("fArrive").value||"N/A");
+  const asmDate=$("fAsmDate").dataset.na?"N/A":($("fAsmDate").value||"N/A");
+  const asmEmp=$("fAsmEmp").value||"N/A";
+
+  const imgFile=$("fImg").files[0];
+  const imgPromise=imgFile?readFileAsDataURL(imgFile):Promise.resolve(null);
+
+  imgPromise.then(image=>{
+    const item={
+      id:editingId||uid(),
+      status,
+      name,
+      type,
+      size,
+      supplier,
+      arrivalDate,
+      totalQty,
+      colors,
+      locations:locs,
+      pack,
+      image,
+      assembleLogs:[],
+      sellLogs:[]
     };
-    reader.readAsDataURL(imgFile);
-  } else {
-    finalizeAdd(item);
-  }
-}
 
-function finalizeAdd(item){
-  store.items.push(item);
-  save();
-  addHistory('add', { name: item.name, type: item.type, size: item.size, qty: item.totalQty });
-  showSuccess("Item berhasil ditambahkan");
-  closeModal("addModal");
-}
-
-function saveEditItem(){
-  const missing = listMissingAddItem();
-  if(missing.length > 0){
-    alert("Lengkapi data:\n" + missing.join("\n"));
-    return;
-  }
-  
-  const item = store.items.find(x => x.id === editingId);
-  if(!item){ return; }
-  
-  const oldData = {...item};
-  
-  item.status = $("fStatus").value;
-  item.name = $("fName").value.trim();
-  item.supplier = $("fSup").value;
-  item.type = $("fType").value;
-  item.size = $("fSize").value;
-  item.pack = $("fPack").value;
-  item.arrivalDate = $("fArrive").dataset.na ? "N/A" : ($("fArrive").value || "N/A");
-  item.totalQty = parseInt($("fQty").value);
-  item.colors = collectColors();
-  item.locations = collectLocs();
-  
-  // Update code jika supplier atau tanggal berubah
-  item.code = genCode(item.supplier, item.arrivalDate);
-  
-  // Handle image upload
-  const imgFile = $("fImg").files[0];
-  if(imgFile){
-    const reader = new FileReader();
-    reader.onload = function(e){
-      item.image = e.target.result;
-      afterEdit(item, oldData);
-    };
-    reader.readAsDataURL(imgFile);
-  } else {
-    afterEdit(item, oldData);
-  }
-}
-
-function afterEdit(item, oldData){
-  save();
-  
-  // Log perubahan
-  const changes = [];
-  if(oldData.name !== item.name) changes.push(`nama: "${oldData.name}" → "${item.name}"`);
-  if(oldData.supplier !== item.supplier) changes.push(`supplier: "${oldData.supplier}" → "${item.supplier}"`);
-  if(oldData.type !== item.type) changes.push(`tipe: "${oldData.type}" → "${item.type}"`);
-  if(oldData.size !== item.size) changes.push(`ukuran: "${oldData.size}" → "${item.size}"`);
-  if(oldData.totalQty !== item.totalQty) changes.push(`qty: ${oldData.totalQty} → ${item.totalQty}`);
-  
-  addHistory('edit', { 
-    name: item.name, 
-    type: item.type, 
-    size: item.size,
-    changes: changes.length > 0 ? changes : ['data diperbarui']
-  });
-  
-  showSuccess("Item berhasil diupdate");
-  closeModal("addModal");
-}
-
-/* ========= Assembly ========= */
-function openAsmPicker(){
-  const items = store.items.filter(i => i.status === "masuk" && Number(i.totalQty||0) > 0);
-  $("asmList").innerHTML = items.map(i => `
-    <div class="item" onclick="openAsmDetail('${i.id}')">
-      <div class="thumb">${i.image ? `<img src="${i.image}" alt="${esc(i.name)}">` : "📷"}</div>
-      <div>
-        <div class="name">${esc(i.name)}</div>
-        <div class="sub">${esc(i.type||"")} • ${esc(i.size||"")}</div>
-        <div class="meta">Stok: ${i.totalQty}</div>
-      </div>
-      <div class="badge">${i.totalQty}</div>
-    </div>
-  `).join("");
-  
-  $("asmSearch").oninput = function(){
-    const term = this.value.toLowerCase();
-    const filtered = items.filter(i => i.name.toLowerCase().includes(term));
-    $("asmList").innerHTML = filtered.map(i => `
-      <div class="item" onclick="openAsmDetail('${i.id}')">
-        <div class="thumb">${i.image ? `<img src="${i.image}" alt="${esc(i.name)}">` : "📷"}</div>
-        <div>
-          <div class="name">${esc(i.name)}</div>
-          <div class="sub">${esc(i.type||"")} • ${esc(i.size||"")}</div>
-          <div class="meta">Stok: ${i.totalQty}</div>
-        </div>
-        <div class="badge">${i.totalQty}</div>
-      </div>
-    `).join("");
-  };
-  
-  showModal("asmModal");
-}
-
-function openAsmDetail(itemId){
-  asmPick = store.items.find(x => x.id === itemId);
-  if(!asmPick){ return; }
-  
-  $("asmHeader").innerHTML = `
-    <div class="detail-title">${esc(asmPick.name)}</div>
-    <div class="detail-sub">${esc(asmPick.type||"")} • ${esc(asmPick.size||"")}</div>
-    <div class="detail-stock">Stok tersedia: <span class="badge">${asmPick.totalQty}</span></div>
-  `;
-  
-  $("adQty").value = 1;
-  $("adQty").max = asmPick.totalQty;
-  $("adColor").value = "";
-  $("adDate").value = new Date().toISOString().slice(0,10);
-  $("adEmp").value = "";
-  
-  buildMasterOptions(null, null, null, null, "adEmp");
-  
-  $("adSave").onclick = function(){
-    const qty = parseInt($("adQty").value || "0");
-    if(qty < 1 || qty > asmPick.totalQty){
-      alert(`Jumlah harus antara 1 dan ${asmPick.totalQty}`);
-      return;
+    if(status==="dirakit"){
+      item.assembleLogs.push({
+        date:asmDate,
+        qty:totalQty,
+        employee:asmEmp,
+        colors:colors.length?chips(colors):null
+      });
     }
-    
-    if(!$("adEmp").value){
-      alert("Pilih pegawai perakit");
-      return;
+
+    if(editingId){
+      const idx=store.items.findIndex(i=>i.id===editingId);
+      if(idx!==-1){ 
+        const old=store.items[idx];
+        item.assembleLogs=old.assembleLogs||[]; 
+        item.sellLogs=old.sellLogs||[];
+        store.items[idx]=item; 
+        addHistory('edit',{name,type,size}, {type:"restore-item",payload:old});
+      }
+    } else {
+      store.items.push(item);
+      addHistory('unit-baru',{name,type,size,qty:totalQty});
     }
-    
-    // Kurangi stok item asal
-    asmPick.totalQty -= qty;
-    
-    // Cari atau buat item Sudah Rakit
-    let target = store.items.find(x => 
-      x.status === "dirakit" && 
-      x.name === asmPick.name && 
-      x.type === asmPick.type && 
-      x.size === asmPick.size
-    );
-    
-    if(!target){
-      target = {
-        id: uid(),
-        status: "dirakit",
-        name: asmPick.name,
-        supplier: asmPick.supplier,
-        type: asmPick.type,
-        size: asmPick.size,
-        pack: asmPick.pack,
-        arrivalDate: asmPick.arrivalDate,
-        totalQty: 0,
-        colors: [],
-        locations: [...asmPick.locations],
-        image: asmPick.image,
-        assembleLogs: [],
-        sellLogs: []
-      };
-      store.items.push(target);
-    }
-    
-    // Tambah stok
-    target.totalQty += qty;
-    
-    // Add assembly log
-    target.assembleLogs.push({
-      date: $("adDate").dataset.na ? "N/A" : ($("adDate").value || new Date().toISOString().slice(0,10)),
-      qty: qty,
-      employee: $("adEmp").value,
-      colors: $("adColor").value
-    });
-    
+
+    closeModal("addModal");
     save();
-    addHistory('assemble', { 
-      name: asmPick.name, 
-      type: asmPick.type, 
-      size: asmPick.size,
-      qty: qty,
-      employee: $("adEmp").value
+    showSuccess(editingId?"Item berhasil diedit":"Item berhasil ditambahkan");
+  });
+}
+
+function readFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ========= Add Sudah Rakit ========= */
+$("btnAddAsm").onclick=()=>{
+  asmPick="add";
+  $("asmList").innerHTML="";
+  store.items.filter(i=>i.status==="masuk").forEach(it=>{
+    const card=document.createElement("div"); 
+    card.className="item"; 
+    card.onclick=()=>openAsmDetail(it);
+    const img=it.image?`<img src="${it.image}">`:`<span class="small">Tanpa Gambar</span>`;
+    card.innerHTML=`
+      <div class="thumb">${img}</div>
+      <div>
+        <div class="name">${it.name}</div>
+        <div class="sub">${it.type||"-"} • ${it.size||"-"}</div>
+        <div class="meta">Stok: ${it.totalQty||0}</div>
+      </div>`;
+    $("asmList").appendChild(card);
+  });
+  $("asmSearch").oninput=()=>{
+    const q=$("asmSearch").value.toLowerCase();
+    Array.from($("asmList").children).forEach(c=>{
+      const txt=c.querySelector(".name").textContent.toLowerCase();
+      c.classList.toggle("hidden",!txt.includes(q));
     });
-    
-    showSuccess(`${qty} unit berhasil dirakit`);
-    closeModal("asmDetailModal");
-    closeModal("asmModal");
   };
-  
+  showModal("asmModal");
+};
+
+function openAsmDetail(item){
+  $("asmHeader").innerHTML=`${item.name} (${item.type}, ${item.size}) - Stok: ${item.totalQty||0}`;
+  $("adQty").value="1";
+  $("adColor").value=chips(item.colors);
+  $("adDate").value=new Date().toISOString().slice(0,10);
+  $("adEmp").value="N/A";
+  $("adEmp").innerHTML=`<option value="">-- pilih / N/A --</option>`+store.employees.map(s=>`<option>${s}</option>`).join("");
+  bindBtnSaveAsmOnce(()=>saveAsm(item));
   showModal("asmDetailModal");
 }
 
-/* ========= Sales ========= */
-function openSellPicker(){
-  const items = store.items.filter(i => i.status === "dirakit" && Number(i.totalQty||0) > 0);
-  $("sellList").innerHTML = items.map(i => `
-    <div class="item" onclick="openSellDetail('${i.id}')">
-      <div class="thumb">${i.image ? `<img src="${i.image}" alt="${esc(i.name)}">` : "📷"}</div>
-      <div>
-        <div class="name">${esc(i.name)}</div>
-        <div class="sub">${esc(i.type||"")} • ${esc(i.size||"")}</div>
-        <div class="meta">Stok: ${i.totalQty}</div>
-      </div>
-      <div class="badge">${i.totalQty}</div>
-    </div>
-  `).join("");
-  
-  $("sellSearch").oninput = function(){
-    const term = this.value.toLowerCase();
-    const filtered = items.filter(i => i.name.toLowerCase().includes(term));
-    $("sellList").innerHTML = filtered.map(i => `
-      <div class="item" onclick="openSellDetail('${i.id}')">
-        <div class="thumb">${i.image ? `<img src="${i.image}" alt="${esc(i.name)}">` : "📷"}</div>
-        <div>
-          <div class="name">${esc(i.name)}</div>
-          <div class="sub">${esc(i.type||"")} • ${esc(i.size||"")}</div>
-          <div class="meta">Stok: ${i.totalQty}</div>
-        </div>
-        <div class="badge">${i.totalQty}</div>
-      </div>
-    `).join("");
-  };
-  
-  showModal("sellModal");
+function bindBtnSaveAsmOnce(handler){
+  const btn=$("adSave");
+  const clone=btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone,btn);
+  clone.id="adSave";
+  clone.onclick=handler;
 }
 
-function openSellDetail(itemId){
-  sellPick = store.items.find(x => x.id === itemId);
-  if(!sellPick){ return; }
-  
-  $("sellHeader").innerHTML = `
-    <div class="detail-title">${esc(sellPick.name)}</div>
-    <div class="detail-sub">${esc(sellPick.type||"")} • ${esc(sellPick.size||"")}</div>
-    <div class="detail-stock">Stok tersedia: <span class="badge">${sellPick.totalQty}</span></div>
-  `;
-  
-  $("sdQty").value = 1;
-  $("sdQty").max = sellPick.totalQty;
-  $("sdColor").value = "";
-  $("sdDate").value = new Date().toISOString().slice(0,10);
-  
-  $("sdSave").onclick = function(){
-    const qty = parseInt($("sdQty").value || "0");
-    if(qty < 1 || qty > sellPick.totalQty){
-      alert(`Jumlah harus antara 1 dan ${sellPick.totalQty}`);
-      return;
-    }
-    
-    // Kurangi stok item asal
-    sellPick.totalQty -= qty;
-    
-    // Cari atau buat item Terjual
-    let target = store.items.find(x => 
-      x.status === "terjual" && 
-      x.name === sellPick.name && 
-      x.type === sellPick.type && 
-      x.size === sellPick.size
-    );
-    
-    if(!target){
-      target = {
-        id: uid(),
-        status: "terjual",
-        name: sellPick.name,
-        supplier: sellPick.supplier,
-        type: sellPick.type,
-        size: sellPick.size,
-        pack: sellPick.pack,
-        arrivalDate: sellPick.arrivalDate,
-        totalQty: 0,
-        colors: [],
-        locations: [],
-        image: sellPick.image,
-        assembleLogs: [...sellPick.assembleLogs],
-        sellLogs: []
-      };
-      store.items.push(target);
-    }
-    
-    // Tambah stok terjual
-    target.totalQty += qty;
-    
-    // Add sales log
-    target.sellLogs.push({
-      date: $("sdDate").value || new Date().toISOString().slice(0,10),
-      qty: qty,
-      colors: $("sdColor").value
-    });
-    
-    save();
-    addHistory('sell', { 
-      name: sellPick.name, 
-      type: sellPick.type, 
-      size: sellPick.size,
-      qty: qty
-    });
-    
-    showSuccess(`${qty} unit berhasil dijual`);
-    closeModal("sellDetailModal");
-    closeModal("sellModal");
+function clampToStock(el,type){
+  const max=type==="asm"?asmPick.maxStock:type==="sell"?sellPick.maxStock:999;
+  let v=parseInt(el.value)||0;
+  if(v<1) v=1;
+  if(v>max) v=max;
+  el.value=v;
+}
+
+function stepLocal(id,type,delta){
+  const el=$(id);
+  let v=parseInt(el.value)||0;
+  v+=delta;
+  clampToStock(el,type);
+}
+
+function saveAsm(item){
+  const qty=parseInt($("adQty").value)||0;
+  const color=($("adColor").value||"").trim();
+  const date=$("adDate").dataset.na?"N/A":($("adDate").value||"N/A");
+  const emp=$("adEmp").value||"N/A";
+
+  if(qty<1) return alert("Jumlah minimal 1.");
+  if(qty>Number(item.totalQty||0)) return alert("Jumlah melebihi stok.");
+  if(!emp) return alert("Pilih pegawai.");
+
+  // Kurangi stok item lama
+  item.totalQty=Number(item.totalQty||0)-qty;
+
+  // Buat item baru (sudah rakit)
+  const newItem={
+    id:uid(),
+    status:"dirakit",
+    name:item.name,
+    type:item.type,
+    size:item.size,
+    supplier:item.supplier,
+    arrivalDate:item.arrivalDate,
+    totalQty:qty,
+    colors:color?color.split(";").map(p=>{
+      const [c,q]=p.split(":").map(x=>x.trim());
+      return {color:c,qty:parseInt(q)||1};
+    }).filter(x=>x.color):[],
+    locations:item.locations?[...item.locations]:[{name:"Toko",qty:qty}],
+    pack:item.pack,
+    image:item.image,
+    assembleLogs:[{
+      date,
+      qty,
+      employee:emp,
+      colors:color||null
+    }],
+    sellLogs:[]
   };
+
+  store.items.push(newItem);
   
+  addHistory('perubahan-status',{
+    name:item.name,
+    type:item.type,
+    size:item.size,
+    dari:"masuk",
+    ke:"dirakit",
+    qty:qty
+  }, {type:"reverse-status",payload:{itemId:newItem.id,from:"dirakit",to:"masuk",qty:qty}});
+
+  closeModal("asmDetailModal"); 
+  closeModal("asmModal"); 
+  save(); 
+  showSuccess("Status berhasil diubah menjadi Sudah Rakit");
+}
+
+/* ========= Add Terjual ========= */
+$("btnAddSell").onclick=()=>{
+  sellPick="add";
+  $("sellList").innerHTML="";
+  store.items.filter(i=>i.status==="dirakit").forEach(it=>{
+    const card=document.createElement("div"); 
+    card.className="item"; 
+    card.onclick=()=>openSellDetail(it);
+    const img=it.image?`<img src="${it.image}">`:`<span class="small">Tanpa Gambar</span>`;
+    card.innerHTML=`
+      <div class="thumb">${img}</div>
+      <div>
+        <div class="name">${it.name}</div>
+        <div class="sub">${it.type||"-"} • ${it.size||"-"}</div>
+        <div class="meta">Stok: ${it.totalQty||0}</div>
+      </div>`;
+    $("sellList").appendChild(card);
+  });
+  $("sellSearch").oninput=()=>{
+    const q=$("sellSearch").value.toLowerCase();
+    Array.from($("sellList").children).forEach(c=>{
+      const txt=c.querySelector(".name").textContent.toLowerCase();
+      c.classList.toggle("hidden",!txt.includes(q));
+    });
+  };
+  showModal("sellModal");
+};
+
+function openSellDetail(item){
+  $("sellHeader").innerHTML=`${item.name} (${item.type}, ${item.size}) - Stok: ${item.totalQty||0}`;
+  $("sdQty").value="1";
+  $("sdColor").value="";
+  $("sdDate").value=new Date().toISOString().slice(0,10);
+  bindBtnSaveSellOnce(()=>saveSell(item));
   showModal("sellDetailModal");
 }
 
-/* ========= Master Data ========= */
-function renderMaster(){
-  const read = $("masterRead");
-  read.innerHTML = `
-    <div class="section">
-      <h3>Supplier</h3>
-      <div id="supList"></div>
-    </div>
-    <div class="section mt8">
-      <h3>Tipe Sepeda</h3>
-      <div id="typeList"></div>
-    </div>
-    <div class="section mt8">
-      <h3>Ukuran</h3>
-      <div id="sizeList"></div>
-    </div>
-    <div class="section mt8">
-      <h3>Kemasan</h3>
-      <div id="packList"></div>
-    </div>
-    <div class="section mt8">
-      <h3>Lokasi Penyimpanan</h3>
-      <div id="locList"></div>
-    </div>
-    <div class="section mt8">
-      <h3>Pegawai</h3>
-      <div id="empList"></div>
+function bindBtnSaveSellOnce(handler){
+  const btn=$("sdSave");
+  const clone=btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone,btn);
+  clone.id="sdSave";
+  clone.onclick=handler;
+}
+
+function saveSell(item){
+  const qty=parseInt($("sdQty").value)||0;
+  const color=($("sdColor").value||"").trim();
+  const date=$("sdDate").value||"";
+
+  if(qty<1) return alert("Jumlah minimal 1.");
+  if(qty>Number(item.totalQty||0)) return alert("Jumlah melebihi stok.");
+  if(!date) return alert("Isi tanggal terjual.");
+
+  // Kurangi stok item lama
+  item.totalQty=Number(item.totalQty||0)-qty;
+
+  // Buat item baru (terjual)
+  const newItem={
+    id:uid(),
+    status:"terjual",
+    name:item.name,
+    type:item.type,
+    size:item.size,
+    supplier:item.supplier,
+    arrivalDate:item.arrivalDate,
+    totalQty:qty,
+    colors:color?color.split(";").map(p=>{
+      const [c,q]=p.split(":").map(x=>x.trim());
+      return {color:c,qty:parseInt(q)||1};
+    }).filter(x=>x.color):[],
+    locations:item.locations?[...item.locations]:[{name:"Toko",qty:qty}],
+    pack:item.pack,
+    image:item.image,
+    assembleLogs:item.assembleLogs||[],
+    sellLogs:[{
+      date,
+      qty,
+      colors:color||null
+    }]
+  };
+
+  store.items.push(newItem);
+  
+  addHistory('perubahan-status',{
+    name:item.name,
+    type:item.type,
+    size:item.size,
+    dari:"dirakit",
+    ke:"terjual",
+    qty:qty
+  }, {type:"reverse-status",payload:{itemId:newItem.id,from:"terjual",to:"dirakit",qty:qty}});
+
+  closeModal("sellDetailModal"); 
+  closeModal("sellModal"); 
+  save(); 
+  showSuccess("Status berhasil diubah menjadi Terjual");
+}
+
+/* ========= Detail Item ========= */
+function openDetail(item,index){
+  currentIndex=index;
+  
+  // Simpan context untuk re-open
+  if(item.groupIds){
+    _detailCtx={route,key:`${item.name}|${item.type}|${item.size}`};
+  } else {
+    _detailCtx={route,id:item.id};
+  }
+
+  const body=$("detailBody"); 
+  body.innerHTML="";
+  
+  const img=item.image?`<img src="${item.image}" onclick="zoomImg(this.src)">`:`<span class="small">Tanpa Gambar</span>`;
+  const code=genCode(item.supplier,item.arrivalDate)||"-";
+  const statusText=item.status==="masuk"?"Belum Rakit":item.status==="dirakit"?"Sudah Rakit":"Terjual";
+  
+  body.innerHTML=`
+    <div class="detail-img">${img}</div>
+    <div class="detail-title">${item.name}</div>
+    <div class="detail-sub">${item.type||"-"} • ${item.size||"-"}</div>
+    <div class="detail-stock">Status: ${statusText} • Stok: ${item.totalQty||0}</div>
+    
+    <div class="readLine">Supplier: ${item.supplier||"N/A"}</div>
+    <div class="readLine">Kemasan: ${item.pack||"-"}</div>
+    <div class="readLine">Tanggal Kedatangan: ${item.arrivalDate||"N/A"}</div>
+    <div class="readLine">ID/Kode: ${code}</div>
+    
+    ${item.colors&&item.colors.length?`<div class="readLine">Warna: ${chips(item.colors)}</div>`:""}
+    ${item.locations&&item.locations.length?`<div class="readLine">Lokasi: ${chips(item.locations,"name","qty")}</div>`:""}
+    
+    ${item.status==="dirakit"||item.status==="terjual"?`
+      <div class="section mt16">
+        <h4>Log ${item.status==="dirakit"?"Perakitan":"Penjualan"}</h4>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Jumlah</th>
+              ${item.status==="dirakit"?'<th>Pegawai</th>':""}
+              ${item.colors&&item.colors.length?'<th>Warna</th>':""}
+            </tr>
+          </thead>
+          <tbody>
+            ${(item.status==="dirakit"?item.assembleLogs:item.sellLogs).map(log=>`
+              <tr>
+                <td>${log.date||"N/A"}</td>
+                <td>${log.qty||0}</td>
+                ${item.status==="dirakit"?`<td>${log.employee||"N/A"}</td>`:""}
+                ${item.colors&&item.colors.length?`<td>${log.colors||"-"}</td>`:""}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `:""}
+    
+    <div class="row mt16" style="justify-content:center">
+      <button class="btn" onclick="editItem()">Edit</button>
+      <button class="btn ghost" onclick="duplicateItem()">Duplikasi</button>
+      <button class="btn red" onclick="deleteItem()">Hapus</button>
+      <button class="btn amber" onclick="generateQRCode('${item.id}')">QR Code</button>
+      <button class="btn green" onclick="takePhoto('${item.id}')">Ambil Foto</button>
+      <button class="btn ghost" onclick="closeModal('detailModal')">Tutup</button>
     </div>
   `;
   
-  // Render lists
-  renderMasterList("supList", store.suppliers, "Supplier");
-  renderMasterList("typeList", store.types, "Tipe");
-  renderMasterList("sizeList", store.sizes, "Ukuran");
-  renderMasterList("packList", store.packs, "Kemasan");
-  renderMasterList("locList", store.locations, "Lokasi");
-  renderMasterList("empList", store.employees, "Pegawai");
-  
-  // Show edit button only for admin
-  const canEdit = currentUser && currentUser.role === 'admin';
-  $("btnMasterEdit").classList.toggle("hidden", !canEdit);
+  showModal("detailModal");
 }
 
-function renderMasterList(containerId, items, label){
-  const container = $(containerId);
-  container.innerHTML = items.map(item => `
-    <div class="chip">
-      ${esc(item)}
-      <span class="x" onclick="if(currentUser&&currentUser.role==='admin')mDel('${containerId}', '${item}')">×</span>
-    </div>
-  `).join("");
+function editItem(){
+  const item=currentList[currentIndex];
+  editingId=item.id;
+  buildMasterOptions();
+  fillNameSuggest();
+  
+  $("addTitle").textContent="Edit Item";
+  $("fName").value=item.name||"";
+  $("fSup").value=item.supplier||"";
+  $("fType").value=item.type||"";
+  $("fSize").value=item.size||"";
+  $("fPack").value=item.pack||"";
+  $("fStatus").value=item.status;
+  $("fQty").value=item.totalQty||"";
+  $("fArrive").value=item.arrivalDate==="N/A"?"":item.arrivalDate||"";
+  $("fArrive").dataset.na=item.arrivalDate==="N/A"?"1":"";
+  
+  $("asmRow").classList.toggle("hidden",item.status!=="dirakit");
+  if(item.status==="dirakit"&&item.assembleLogs&&item.assembleLogs.length){
+    const last=item.assembleLogs[item.assembleLogs.length-1];
+    $("fAsmDate").value=last.date==="N/A"?"":last.date||"";
+    $("fAsmDate").dataset.na=last.date==="N/A"?"1":"";
+    $("fAsmEmp").value=last.employee||"";
+  } else {
+    $("fAsmDate").value=""; 
+    $("fAsmDate").dataset.na="";
+    $("fAsmEmp").value="";
+  }
+  
+  $("colorWrap").innerHTML="";
+  (item.colors||[]).forEach(c=>addColorRow(c.color,c.qty));
+  
+  $("locWrap").innerHTML="";
+  (item.locations||[]).forEach(l=>addLocRow(l.name,l.qty));
+  
+  $("fImg").value="";
+  
+  bindBtnSaveOnce(saveNewItem);
+  closeModal("detailModal");
+  showModal("addModal");
 }
 
-function drawMasterEdit(){
-  $("masterRead").classList.add("hidden");
-  $("masterEdit").classList.remove("hidden");
+function duplicateItem(){
+  const item=currentList[currentIndex];
+  editingId=null;
+  buildMasterOptions();
+  fillNameSuggest();
   
-  $("masterEdit").innerHTML = `
+  $("addTitle").textContent="Duplikasi Item";
+  $("fName").value=item.name||"";
+  $("fSup").value=item.supplier||"";
+  $("fType").value=item.type||"";
+  $("fSize").value=item.size||"";
+  $("fPack").value=item.pack||"";
+  $("fStatus").value=item.status;
+  $("fQty").value=item.totalQty||"";
+  $("fArrive").value="";
+  $("fArrive").dataset.na="";
+  
+  $("asmRow").classList.toggle("hidden",item.status!=="dirakit");
+  $("fAsmDate").value=""; 
+  $("fAsmDate").dataset.na="";
+  $("fAsmEmp").value="";
+  
+  $("colorWrap").innerHTML="";
+  (item.colors||[]).forEach(c=>addColorRow(c.color,c.qty));
+  
+  $("locWrap").innerHTML="";
+  (item.locations||[]).forEach(l=>addLocRow(l.name,l.qty));
+  
+  $("fImg").value="";
+  
+  bindBtnSaveOnce(saveNewItem);
+  closeModal("detailModal");
+  showModal("addModal");
+}
+
+function deleteItem(){
+  const item=currentList[currentIndex];
+  if(!confirm(`Hapus item "${item.name}"?`)) return;
+  
+  // Check delete permission
+  if (!ROLE_PERMISSIONS[currentUser.role].includes('delete')) {
+    toast('Anda tidak memiliki izin untuk menghapus item');
+    return;
+  }
+  
+  const idx=store.items.findIndex(i=>i.id===item.id);
+  if(idx!==-1){
+    const removed=store.items.splice(idx,1)[0];
+    addHistory('hapus',{name:item.name,type:item.type,size:item.size}, {type:"restore-item",payload:removed});
+  }
+  
+  closeModal("detailModal");
+  save();
+  showSuccess("Item berhasil dihapus");
+}
+
+function zoomImg(src){
+  $("zoomBox").style.display="flex";
+  $("zoomBox").querySelector("img").src=src;
+}
+
+/* ========= Data Master ========= */
+function renderMaster(){
+  const r=$("masterRead"); 
+  r.innerHTML=`
     <div class="grid2">
       <div class="section">
-        <h3>Supplier</h3>
-        <div id="editSupList"></div>
-        <div class="row mt8">
-          <input id="newSup" class="input" placeholder="Supplier baru">
-          <button class="btn small" onclick="mAdd('supList', 'newSup')">+</button>
-        </div>
+        <h4>Supplier</h4>
+        <div id="supList"></div>
       </div>
       <div class="section">
-        <h3>Tipe Sepeda</h3>
-        <div id="editTypeList"></div>
-        <div class="row mt8">
-          <input id="newType" class="input" placeholder="Tipe baru">
-          <button class="btn small" onclick="mAdd('typeList', 'newType')">+</button>
-        </div>
+        <h4>Tipe Sepeda</h4>
+        <div id="typeList"></div>
       </div>
     </div>
-    
-    <div class="grid2 mt8">
+    <div class="grid2">
       <div class="section">
-        <h3>Ukuran</h3>
-        <div id="editSizeList"></div>
-        <div class="row mt8">
-          <input id="newSize" class="input" placeholder="Ukuran baru">
-          <button class="btn small" onclick="mAdd('sizeList', 'newSize')">+</button>
-        </div>
+        <h4>Ukuran (inci)</h4>
+        <div id="sizeList"></div>
       </div>
       <div class="section">
-        <h3>Kemasan</h3>
-        <div id="editPackList"></div>
-        <div class="row mt8">
-          <input id="newPack" class="input" placeholder="Kemasan baru">
-          <button class="btn small" onclick="mAdd('packList', 'newPack')">+</button>
-        </div>
+        <h4>Kemasan</h4>
+        <div id="packList"></div>
       </div>
     </div>
-    
-    <div class="grid2 mt8">
+    <div class="grid2">
       <div class="section">
-        <h3>Lokasi Penyimpanan</h3>
-        <div id="editLocList"></div>
-        <div class="row mt8">
-          <input id="newLoc" class="input" placeholder="Lokasi baru">
-          <button class="btn small" onclick="mAdd('locList', 'newLoc')">+</button>
-        </div>
+        <h4>Lokasi</h4>
+        <div id="locList"></div>
       </div>
       <div class="section">
-        <h3>Pegawai</h3>
-        <div id="editEmpList"></div>
-        <div class="row mt8">
-          <input id="newEmp" class="input" placeholder="Pegawai baru">
-          <button class="btn small" onclick="mAdd('empList', 'newEmp')">+</button>
-        </div>
+        <h4>Pegawai</h4>
+        <div id="empList"></div>
       </div>
     </div>
   `;
   
-  // Render editable lists
-  renderEditableMasterList("editSupList", store.suppliers, "suppliers");
-  renderEditableMasterList("editTypeList", store.types, "types");
-  renderEditableMasterList("editSizeList", store.sizes, "sizes");
-  renderEditableMasterList("editPackList", store.packs, "packs");
-  renderEditableMasterList("editLocList", store.locations, "locations");
-  renderEditableMasterList("editEmpList", store.employees, "employees");
-  
-  // Update button states
-  $("btnMasterEdit").classList.add("hidden");
-  $("btnMasterSave").classList.remove("hidden");
-  $("btnMasterCancel").classList.remove("hidden");
+  renderMasterList("supList",store.suppliers,"supplier");
+  renderMasterList("typeList",store.types,"type");
+  renderMasterList("sizeList",store.sizes,"size");
+  renderMasterList("packList",store.packs,"pack");
+  renderMasterList("locList",store.locations,"location");
+  renderMasterList("empList",store.employees,"employee");
 }
 
-function renderEditableMasterList(containerId, items, storeKey){
-  const container = $(containerId);
-  container.innerHTML = items.map((item, index) => `
-    <div class="row mt4">
-      <input class="input" value="${esc(item)}" onchange="mUpdate('${storeKey}', ${index}, this.value)" style="flex:1">
-      <button class="btn ghost small red" onclick="mRemove('${storeKey}', ${index})">Hapus</button>
-    </div>
-  `).join("");
-}
-
-function mAdd(listId, inputId){
-  const input = $(inputId);
-  const value = input.value.trim();
-  if(!value){ return; }
-  
-  let storeKey = "";
-  switch(listId){
-    case "supList": storeKey = "suppliers"; break;
-    case "typeList": storeKey = "types"; break;
-    case "sizeList": storeKey = "sizes"; break;
-    case "packList": storeKey = "packs"; break;
-    case "locList": storeKey = "locations"; break;
-    case "empList": storeKey = "employees"; break;
-  }
-  
-  if(storeKey && !store[storeKey].includes(value)){
-    store[storeKey].push(value);
-    renderEditableMasterList("edit" + listId.charAt(0).toUpperCase() + listId.slice(1), store[storeKey], storeKey);
-    input.value = "";
-  }
-}
-
-function mUpdate(storeKey, index, newValue){
-  newValue = newValue.trim();
-  if(newValue && !store[storeKey].includes(newValue)){
-    store[storeKey][index] = newValue;
-  }
-}
-
-function mRemove(storeKey, index){
-  store[storeKey].splice(index, 1);
-  const containerId = "edit" + storeKey.charAt(0).toUpperCase() + storeKey.slice(1);
-  renderEditableMasterList(containerId, store[storeKey], storeKey);
-}
-
-function mDel(listId, value){
-  let storeKey = "";
-  switch(listId){
-    case "supList": storeKey = "suppliers"; break;
-    case "typeList": storeKey = "types"; break;
-    case "sizeList": storeKey = "sizes"; break;
-    case "packList": storeKey = "packs"; break;
-    case "locList": storeKey = "locations"; break;
-    case "empList": storeKey = "employees"; break;
-  }
-  
-  if(storeKey){
-    store[storeKey] = store[storeKey].filter(x => x !== value);
-    renderMasterList(listId, store[storeKey], "");
-  }
-}
-
-function saveMasterEdit(){
-  save();
-  $("masterEdit").classList.add("hidden");
-  $("masterRead").classList.remove("hidden");
-  $("btnMasterEdit").classList.remove("hidden");
-  $("btnMasterSave").classList.add("hidden");
-  $("btnMasterCancel").classList.add("hidden");
-  
-  addHistory('master-edit', { 
-    suppliers: store.suppliers.length,
-    types: store.types.length,
-    sizes: store.sizes.length,
-    packs: store.packs.length,
-    locations: store.locations.length,
-    employees: store.employees.length
-  });
-  
-  showSuccess("Data master berhasil disimpan");
-}
-
-function cancelMasterEdit(){
-  $("masterEdit").classList.add("hidden");
-  $("masterRead").classList.remove("hidden");
-  $("btnMasterEdit").classList.remove("hidden");
-  $("btnMasterSave").classList.add("hidden");
-  $("btnMasterCancel").classList.add("hidden");
-}
-
-/* ========= Reports ========= */
-function renderLaporan(){
-  $("laporanOptions").classList.remove("show");
-  $("laporanResult").innerHTML = `
-    <div style="text-align:center;padding:40px 20px;color:var(--muted)">
-      Pilih jenis laporan untuk menampilkan data.
-    </div>
-  `;
-}
-
-function generateReport(type){
-  const startDate = $("reportStartDate").value;
-  const endDate = $("reportEndDate").value;
-  
-  let html = "";
-  let data = [];
-  
-  switch(type){
-    case "stok":
-      html = `<h3>Laporan Stok</h3>`;
-      data = store.items.filter(i => i.status === "masuk");
-      break;
-      
-    case "pergerakan":
-      html = `<h3>Laporan Pergerakan Stok</h3>`;
-      // Combine assembly and sales logs from all items
-      let movements = [];
-      store.items.forEach(item => {
-        if(item.assembleLogs){
-          item.assembleLogs.forEach(log => {
-            movements.push({
-              type: "Perakitan",
-              item: item.name,
-              date: log.date,
-              qty: log.qty,
-              detail: `Pegawai: ${log.employee}`
-            });
-          });
-        }
-        if(item.sellLogs){
-          item.sellLogs.forEach(log => {
-            movements.push({
-              type: "Penjualan",
-              item: item.name,
-              date: log.date,
-              qty: log.qty,
-              detail: ``
-            });
-          });
-        }
-      });
-      
-      // Sort by date
-      movements.sort((a, b) => new Date(b.date) - new Date(a.date));
-      data = movements;
-      break;
-      
-    case "penjualan":
-      html = `<h3>Laporan Penjualan</h3>`;
-      data = store.items.filter(i => i.status === "terjual");
-      break;
-      
-    case "perakitan":
-      html = `<h3>Laporan Perakitan</h3>`;
-      data = store.items.filter(i => i.status === "dirakit");
-      break;
-      
-    case "prediksi":
-      html = `<h3>Prediksi Stok</h3>`;
-      // Simple prediction based on recent sales
-      const recentSales = store.items
-        .filter(i => i.status === "terjual")
-        .slice(0, 10)
-        .reduce((sum, item) => sum + item.totalQty, 0);
-      
-      const currentStock = store.items
-        .filter(i => i.status === "masuk")
-        .reduce((sum, item) => sum + item.totalQty, 0);
-      
-      const predictionDays = currentStock / (recentSales / 30); // rough estimate
-      
-      html += `
-        <div class="dashboard-card">
-          <div class="dashboard-label">Stok Saat Ini</div>
-          <div class="dashboard-value">${currentStock} unit</div>
-        </div>
-        <div class="dashboard-card">
-          <div class="dashboard-label">Penjualan 30 Hari</div>
-          <div class="dashboard-value">${recentSales} unit</div>
-        </div>
-        <div class="dashboard-card">
-          <div class="dashboard-label">Prediksi Stok Habis</div>
-          <div class="dashboard-value">${Math.round(predictionDays)} hari</div>
-        </div>
-      `;
-      break;
-  }
-  
-  if(data.length > 0 && type !== "prediksi"){
-    html += `<div class="report-table-container">`;
-    html += `<table class="table"><thead><tr>`;
-    
-    // Table headers based on report type
-    if(type === "stok" || type === "penjualan" || type === "perakitan"){
-      html += `
-        <th>Nama</th>
-        <th>Tipe</th>
-        <th>Ukuran</th>
-        <th>Supplier</th>
-        <th>Stok</th>
-        <th>Tanggal</th>
-      `;
-    } else if(type === "pergerakan"){
-      html += `
-        <th>Tanggal</th>
-        <th>Jenis</th>
-        <th>Item</th>
-        <th>Qty</th>
-        <th>Detail</th>
-      `;
-    }
-    
-    html += `</tr></thead><tbody>`;
-    
-    data.forEach(item => {
-      html += `<tr>`;
-      
-      if(type === "stok" || type === "penjualan" || type === "perakitan"){
-        html += `
-          <td>${esc(item.name)}</td>
-          <td>${esc(item.type||"")}</td>
-          <td>${esc(item.size||"")}</td>
-          <td>${esc(item.supplier||"")}</td>
-          <td>${item.totalQty}</td>
-          <td>${item.arrivalDate||"N/A"}</td>
-        `;
-      } else if(type === "pergerakan"){
-        html += `
-          <td>${item.date||"N/A"}</td>
-          <td>${item.type}</td>
-          <td>${esc(item.item)}</td>
-          <td>${item.qty}</td>
-          <td>${esc(item.detail)}</td>
-        `;
+function renderMasterList(id,arr,type){
+  const el=$(id);
+  el.innerHTML=arr.map(x=>`<div class="chip">${x} <button class="x" onclick="removeMasterItem('${type}','${x}')">✕</button></div>`).join("");
+  el.innerHTML+=`<input class="input mt8" placeholder="Tambah ${type}" id="add${type}" style="width:200px">`;
+  $(`add${type}`).onkeydown=e=>{
+    if(e.key==="Enter"){
+      const v=e.target.value.trim();
+      if(v&&!arr.includes(v)){
+        arr.push(v);
+        save();
+        renderMaster();
+        toast(`${type} "${v}" ditambahkan`);
       }
-      
-      html += `</tr>`;
-    });
-    
-    html += `</tbody></table>`;
-    html += `</div>`;
-    html += `<div class="mt12"><strong>Total Data: ${data.length}</strong></div>`;
-  }
+      e.target.value="";
+    }
+  };
+}
+
+function removeMasterItem(type,val){
+  if(!confirm(`Hapus ${type} "${val}"?`)) return;
   
-  $("laporanResult").innerHTML = html;
+  let arr;
+  if(type==="supplier") arr=store.suppliers;
+  else if(type==="type") arr=store.types;
+  else if(type==="size") arr=store.sizes;
+  else if(type==="pack") arr=store.packs;
+  else if(type==="location") arr=store.locations;
+  else if(type==="employee") arr=store.employees;
+  else return;
+  
+  const idx=arr.indexOf(val);
+  if(idx!==-1) arr.splice(idx,1);
+  save();
+  renderMaster();
+  toast(`${type} "${val}" dihapus`);
+}
+
+/* ========= Laporan ========= */
+function renderLaporan(){
+  $("btnPilihLaporan").onclick=()=>{
+    $("laporanOptions").classList.toggle("show");
+  };
+  
+  // Set default date range (bulan ini)
+  const now=new Date();
+  const firstDay=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
+  const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
+  
+  $("reportStartDate").value=firstDay;
+  $("reportEndDate").value=lastDay;
+  
+  renderHistory();
 }
 
 function setReportDateRange(range){
-  const today = new Date();
-  let startDate, endDate;
+  const now=new Date();
+  let start,end;
   
   switch(range){
     case "today":
-      startDate = today.toISOString().slice(0,10);
-      endDate = startDate;
+      start=end=now.toISOString().slice(0,10);
       break;
     case "week":
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
-      startDate = startOfWeek.toISOString().slice(0,10);
-      endDate = today.toISOString().slice(0,10);
+      const day=now.getDay();
+      const diff=now.getDate()-day+(day===0?-6:1);
+      start=new Date(now.setDate(diff)).toISOString().slice(0,10);
+      end=new Date(now.setDate(diff+6)).toISOString().slice(0,10);
       break;
     case "month":
-      startDate = today.toISOString().slice(0,7) + "-01";
-      endDate = today.toISOString().slice(0,10);
+      start=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
+      end=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
       break;
   }
   
-  $("reportStartDate").value = startDate;
-  $("reportEndDate").value = endDate;
+  $("reportStartDate").value=start;
+  $("reportEndDate").value=end;
 }
 
-// Toggle laporan options
-$("btnPilihLaporan").onclick = function(){
-  $("laporanOptions").classList.toggle("show");
-};
+function generateReport(type){
+  const start=$("reportStartDate").value;
+  const end=$("reportEndDate").value;
+  
+  let html=`<h3>Laporan ${type} (${start} s/d ${end})</h3>`;
+  
+  switch(type){
+    case "stok":
+      html+=renderStockReport(start,end);
+      break;
+    case "pergerakan":
+      html+=renderMovementReport(start,end);
+      break;
+    case "penjualan":
+      html+=renderSalesReport(start,end);
+      break;
+    case "perakitan":
+      html+=renderAssemblyReport(start,end);
+      break;
+    case "prediksi":
+      html+=renderPredictionReport(start,end);
+      break;
+  }
+  
+  $("laporanResult").innerHTML=html;
+}
 
-/* ========= History System ========= */
-function addHistory(type, data){
-  const entry = {
-    id: uid(),
-    timestamp: new Date().toISOString(),
-    type: type,
-    data: data,
-    user: currentUser ? currentUser.username : 'system'
+function renderStockReport(start,end){
+  const items=store.items.filter(i=>{
+    const date=i.arrivalDate;
+    return date && date!=="N/A" && date>=start && date<=end;
+  });
+  
+  let html=`<table class="table"><thead><tr><th>Nama</th><th>Tipe</th><th>Ukuran</th><th>Supplier</th><th>Stok</th><th>Status</th></tr></thead><tbody>`;
+  
+  items.forEach(i=>{
+    html+=`<tr>
+      <td>${i.name}</td>
+      <td>${i.type}</td>
+      <td>${i.size}</td>
+      <td>${i.supplier}</td>
+      <td>${i.totalQty}</td>
+      <td>${i.status==="masuk"?"Belum Rakit":i.status==="dirakit"?"Sudah Rakit":"Terjual"}</td>
+    </tr>`;
+  });
+  
+  html+=`</tbody></table>`;
+  html+=`<div class="mt12"><strong>Total: ${items.length} item</strong></div>`;
+  return html;
+}
+
+function renderMovementReport(start,end){
+  let html=`<div class="small">Laporan pergerakan stok akan ditampilkan di sini.</div>`;
+  return html;
+}
+
+function renderSalesReport(start,end){
+  const sales=store.items.filter(i=>i.status==="terjual").flatMap(i=>
+    (i.sellLogs||[]).map(s=>({...s,item:i}))
+  ).filter(s=>s.date>=start&&s.date<=end);
+  
+  let html=`<table class="table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Tipe</th><th>Ukuran</th><th>Jumlah</th></tr></thead><tbody>`;
+  
+  sales.forEach(s=>{
+    html+=`<tr>
+      <td>${s.date}</td>
+      <td>${s.item.name}</td>
+      <td>${s.item.type}</td>
+      <td>${s.item.size}</td>
+      <td>${s.qty}</td>
+    </tr>`;
+  });
+  
+  html+=`</tbody></table>`;
+  html+=`<div class="mt12"><strong>Total Penjualan: ${sales.reduce((sum,s)=>sum+s.qty,0)} unit</strong></div>`;
+  return html;
+}
+
+function renderAssemblyReport(start,end){
+  const assemblies=store.items.filter(i=>i.status==="dirakit").flatMap(i=>
+    (i.assembleLogs||[]).map(a=>({...a,item:i}))
+  ).filter(a=>a.date>=start&&a.date<=end);
+  
+  let html=`<table class="table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Tipe</th><th>Ukuran</th><th>Jumlah</th><th>Pegawai</th></tr></thead><tbody>`;
+  
+  assemblies.forEach(a=>{
+    html+=`<tr>
+      <td>${a.date}</td>
+      <td>${a.item.name}</td>
+      <td>${a.item.type}</td>
+      <td>${a.item.size}</td>
+      <td>${a.qty}</td>
+      <td>${a.employee}</td>
+    </tr>`;
+  });
+  
+  html+=`</tbody></table>`;
+  html+=`<div class="mt12"><strong>Total Perakitan: ${assemblies.reduce((sum,a)=>sum+a.qty,0)} unit</strong></div>`;
+  return html;
+}
+
+function renderPredictionReport(start,end){
+  let html=`<div class="small">Prediksi stok akan ditampilkan di sini.</div>`;
+  return html;
+}
+
+/* ========= Riwayat ========= */
+function renderHistory(){
+  const type=$("hisType").value;
+  let arr=store.history||[];
+  
+  if(type!=="all"){
+    arr=arr.filter(h=>h.type===type);
+  }
+  
+  // Sort by timestamp descending (newest first)
+  arr.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  
+  const tbody=$("hisTable").querySelector("tbody");
+  tbody.innerHTML="";
+  
+  arr.forEach(h=>{
+    const tr=document.createElement("tr");
+    const time=new Date(h.timestamp).toLocaleString("id-ID");
+    
+    let action="";
+    if(h.type==="unit-baru"){
+      action=`Unit baru: ${h.data.name} (${h.data.type}, ${h.data.size}) - ${h.data.qty} unit`;
+    } else if(h.type==="perubahan-status"){
+      action=`Status berubah: ${h.data.name} dari ${h.data.dari} ke ${h.data.ke} - ${h.data.qty} unit`;
+    } else if(h.type==="edit"){
+      action=`Edit: ${h.data.name} (${h.data.type}, ${h.data.size})`;
+    } else if(h.type==="hapus"){
+      if(h.data.qty){
+        action=`Hapus ${h.data.qty} item`;
+      } else {
+        action=`Hapus: ${h.data.name} (${h.data.type}, ${h.data.size})`;
+      }
+    } else if(h.type==="impor"){
+      action=`Impor ${h.data.qty} item dari CSV`;
+    } else if(h.type==="backup"){
+      action=`Backup data: ${h.data.filename}`;
+    } else if(h.type==="restore"){
+      action=`Restore data: ${h.data.filename}`;
+    }
+    
+    let undoBtn="";
+    if(h.undoAction&&!h.undone){
+      undoBtn=`<button class="btn ghost small" onclick="undoHistory('${h.id}')">Undo</button>`;
+    }
+    
+    tr.innerHTML=`
+      <td style="text-align:right">${time}</td>
+      <td>${action}</td>
+      <td>${h.user||"System"}</td>
+      <td>${undoBtn}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  // Add pagination for history
+  addPaginationControls(arr.length, Math.ceil(arr.length / itemsPerPage), 'history');
+}
+
+function addHistory(type,data,undoAction){
+  const entry={
+    id:uid(),
+    type,
+    data,
+    timestamp:new Date().toISOString(),
+    user:currentUser?currentUser.username:"System",
+    undoAction,
+    undone:false
   };
   
+  if(!store.history) store.history=[];
   store.history.unshift(entry);
   
   // Keep only last 1000 entries
-  if(store.history.length > 1000){
-    store.history = store.history.slice(0, 1000);
+  if(store.history.length>1000){
+    store.history=store.history.slice(0,1000);
   }
-}
-
-function renderHistory(){
-  const typeFilter = $("hisType").value;
-  let filtered = store.history;
-  
-  if(typeFilter !== "all"){
-    filtered = store.history.filter(h => h.type === typeFilter);
-  }
-  
-  const tbody = $("#hisTable tbody");
-  tbody.innerHTML = filtered.map(entry => {
-    const time = new Date(entry.timestamp).toLocaleString("id-ID");
-    let activity = "", detail = "";
-    
-    switch(entry.type){
-      case "add":
-        activity = "Tambah Item";
-        detail = `${entry.data.name} (${entry.data.type} - ${entry.data.size}) - ${entry.data.qty} unit`;
-        break;
-      case "edit":
-        activity = "Edit Item";
-        detail = `${entry.data.name} (${entry.data.type} - ${entry.data.size}) - ${entry.data.changes.join(", ")}`;
-        break;
-      case "delete":
-        activity = "Hapus Item";
-        detail = `${entry.data.name} (${entry.data.type} - ${entry.data.size})`;
-        break;
-      case "assemble":
-        activity = "Perakitan";
-        detail = `${entry.data.qty} unit ${entry.data.name} (${entry.data.type} - ${entry.data.size}) - ${entry.data.employee}`;
-        break;
-      case "sell":
-        activity = "Penjualan";
-        detail = `${entry.data.qty} unit ${entry.data.name} (${entry.data.type} - ${entry.data.size})`;
-        break;
-      case "mass-edit":
-        activity = "Edit Massal";
-        detail = `${entry.data.count} item diubah`;
-        break;
-      case "mass-delete":
-        activity = "Hapus Massal";
-        detail = `${entry.data.count} item dihapus`;
-        break;
-      case "master-edit":
-        activity = "Edit Master Data";
-        detail = `Supplier:${entry.data.suppliers} Tipe:${entry.data.types} Ukuran:${entry.data.sizes} Kemasan:${entry.data.packs} Lokasi:${entry.data.locations} Pegawai:${entry.data.employees}`;
-        break;
-      case "backup":
-        activity = "Backup Data";
-        detail = `File: ${entry.data.filename}`;
-        break;
-      case "restore":
-        activity = "Restore Data";
-        detail = `File: ${entry.data.filename}`;
-        break;
-      case "import":
-        activity = "Impor Data";
-        detail = `${entry.data.count} item diimpor`;
-        break;
-      default:
-        activity = entry.type;
-        detail = JSON.stringify(entry.data);
-    }
-    
-    return `
-      <tr>
-        <td style="text-align:right;font-size:12px">${time}</td>
-        <td>${activity}</td>
-        <td>${detail}</td>
-        <td style="text-align:center">
-          ${entry.type === "delete" ? `<button class="btn ghost small" onclick="undoHistory('${entry.id}')">Undo</button>` : "-"}
-        </td>
-      </tr>
-    `;
-  }).join("");
-}
-
-function undoHistory(historyId){
-  const entry = store.history.find(h => h.id === historyId);
-  if(!entry || entry.type !== "delete"){ return; }
-  
-  // Find the deleted item in backup (simplified - in real app you'd want to store the actual deleted item)
-  const deletedItem = store.items.find(i => 
-    i.name === entry.data.name && 
-    i.type === entry.data.type && 
-    i.size === entry.data.size
-  );
-  
-  if(!deletedItem){
-    alert("Item tidak dapat di-restore (data tidak ditemukan)");
-    return;
-  }
-  
-  // Restore the item
-  store.items.push({
-    ...deletedItem,
-    id: uid() // new ID since the old one might be in use
-  });
   
   save();
-  showSuccess("Item berhasil di-restore");
 }
 
-/* ========= Import/Export ========= */
-function downloadCSV(){
-  // Check export permission
-  if (!currentUser || !ROLE_PERMISSIONS[currentUser.role].includes('export')) {
-    alert('Anda tidak memiliki izin untuk mengekspor data.');
-    return;
+function undoHistory(id){
+  const entry=store.history.find(h=>h.id===id);
+  if(!entry||entry.undone||!entry.undoAction) return;
+  
+  const action=entry.undoAction;
+  
+  if(action.type==="restore-item"){
+    store.items.push(action.payload);
+    toast("Item dikembalikan");
+  } else if(action.type==="restore-items"){
+    store.items.push(...action.payload);
+    toast(`${action.payload.length} item dikembalikan`);
+  } else if(action.type==="reverse-status"){
+    const item=store.items.find(i=>i.id===action.payload.itemId);
+    if(item){
+      item.status=action.payload.to;
+      
+      // Adjust quantities if needed
+      if(action.payload.qty){
+        // This is a simplified reversal - in a real app you'd need more complex logic
+        item.totalQty=action.payload.qty;
+      }
+    }
+    toast("Status dikembalikan");
   }
   
-  const headers = ["ID","Status","Nama","Tipe","Ukuran","Supplier","TanggalKedatangan","Jumlah","Warna","Lokasi","Kemasan","Kode"];
-  let csv = headers.join(",") + "\n";
+  entry.undone=true;
+  save();
+  renderHistory();
+}
+
+/* ========= Export/Import CSV ========= */
+$("btnExport").onclick=()=>{
+  const items=store.items.filter(i=>i.status==="masuk");
+  const headers=["Nama","Tipe","Ukuran","Supplier","Tanggal_Kedatangan","Jumlah_Unit","Warna","Lokasi","Kemasan"];
   
-  store.items.forEach(item => {
-    const row = [
-      item.id,
-      item.status,
-      escCSV(item.name),
-      escCSV(item.type),
-      escCSV(item.size),
-      escCSV(item.supplier),
-      item.arrivalDate,
-      item.totalQty,
-      escCSV(chips(item.colors)),
-      escCSV(chips(item.locations, "name", "qty")),
-      escCSV(item.pack),
-      escCSV(item.code)
-    ];
-    csv += row.join(",") + "\n";
+  let csv=headers.join(",")+"\n";
+  
+  items.forEach(i=>{
+    const colors=chips(i.colors);
+    const locations=chips(i.locations,"name","qty");
+    const row=[
+      i.name,
+      i.type,
+      i.size,
+      i.supplier,
+      i.arrivalDate,
+      i.totalQty,
+      `"${colors}"`,
+      `"${locations}"`,
+      i.pack
+    ].map(f=>f||"").join(",");
+    csv+=row+"\n";
   });
   
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `mujur-bikes-${new Date().toISOString().slice(0,10)}.csv`;
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`mujur-bikes-export-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
   
-  addHistory('export', { count: store.items.length });
-  toast("CSV berhasil diunduh");
-}
+  addHistory('ekspor',{qty:items.length});
+  toast(`Diekspor ${items.length} item`);
+};
 
-function escCSV(str){
-  if(!str) return "";
-  str = String(str);
-  if(str.includes(",") || str.includes('"') || str.includes("\n")){
-    return '"' + str.replace(/"/g, '""') + '"';
-  }
-  return str;
-}
-
-// Import CSV
-function importCSV(){
-  // Check import permission
-  if (!currentUser || !ROLE_PERMISSIONS[currentUser.role].includes('import')) {
-    alert('Anda tidak memiliki izin untuk mengimpor data.');
-    return;
-  }
+$("btnImportData").onclick=()=>{
+  const input=document.createElement("input");
+  input.type="file";
+  input.accept=".csv";
   
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = ".csv";
-  
-  input.onchange = e => {
-    const file = e.target.files[0];
+  input.onchange=e=>{
+    const file=e.target.files[0];
     if(!file) return;
     
-    const reader = new FileReader();
-    reader.onload = event => {
-      const csv = event.target.result;
-      const lines = splitCSV(csv);
+    const reader=new FileReader();
+    reader.onload=event=>{
+      const csv=event.target.result;
+      const lines=csv.split("\n").filter(l=>l.trim());
+      const headers=lines[0].split(",").map(h=>h.trim());
       
-      if(lines.length < 2){
-        alert("File CSV kosong atau tidak valid");
-        return;
+      const imported=[];
+      
+      for(let i=1;i<lines.length;i++){
+        const values=parseCSVLine(lines[i]);
+        if(values.length<headers.length) continue;
+        
+        const item={
+          id:uid(),
+          status:"masuk",
+          name:values[0]||"",
+          type:values[1]||"",
+          size:values[2]||"",
+          supplier:values[3]||"N/A",
+          arrivalDate:values[4]||"N/A",
+          totalQty:parseInt(values[5])||0,
+          colors:parseColorQty(values[6]),
+          locations:parseLocQty(values[7]),
+          pack:values[8]||"N/A",
+          image:null,
+          assembleLogs:[],
+          sellLogs:[]
+        };
+        
+        if(item.name&&item.type&&item.size&&item.totalQty>0){
+          store.items.push(item);
+          imported.push(item);
+        }
       }
       
-      const headers = lines[0];
-      const data = lines.slice(1);
-      let imported = 0, errors = [];
-      
-      data.forEach((row, idx) => {
-        if(row.length !== headers.length){
-          errors.push(`Baris ${idx+2}: Jumlah kolom tidak sesuai`);
-          return;
-        }
-        
-        const obj = {};
-        headers.forEach((h, i) => {
-          obj[h] = row[i] || "";
-        });
-        
-        try {
-          // Parse data
-          const item = {
-            id: obj.ID || uid(),
-            status: obj.Status || "masuk",
-            name: obj.Nama || "",
-            type: obj.Tipe || "",
-            size: obj.Ukuran || "",
-            supplier: obj.Supplier || "",
-            arrivalDate: obj.TanggalKedatangan || "N/A",
-            totalQty: parseInt(obj.Jumlah) || 0,
-            colors: parsePairs(obj.Warna, "color", "qty"),
-            locations: parsePairs(obj.Lokasi, "name", "qty"),
-            pack: obj.Kemasan || "",
-            code: obj.Kode || genCode(obj.Supplier, obj.TanggalKedatangan),
-            image: null,
-            assembleLogs: [],
-            sellLogs: []
-          };
-          
-          // Validasi
-          if(!item.name || !item.type || !item.size){
-            errors.push(`Baris ${idx+2}: Data tidak lengkap`);
-            return;
-          }
-          
-          // Cek duplikat
-          const exists = store.items.find(i => 
-            i.name === item.name && 
-            i.type === item.type && 
-            i.size === item.size
-          );
-          
-          if(!exists){
-            store.items.push(item);
-            imported++;
-          }
-          
-        } catch(err){
-          errors.push(`Baris ${idx+2}: ${err.message}`);
-        }
-      });
-      
-      if(imported > 0){
+      if(imported.length){
+        addHistory('impor',{qty:imported.length}, {type:"restore-items",payload:imported});
         save();
-        addHistory('import', { count: imported, errors: errors.length });
-        showSuccess(`${imported} item berhasil diimpor${errors.length > 0 ? `, ${errors.length} error` : ''}`);
-      } else if(errors.length > 0){
-        alert("Import gagal:\n" + errors.slice(0,10).join("\n"));
+        showSuccess(`Diimpor ${imported.length} item dari CSV`);
+      } else {
+        alert("Tidak ada item yang valid di file CSV.");
       }
     };
     
@@ -4556,297 +4186,106 @@ function importCSV(){
   };
   
   input.click();
-}
+};
 
-function splitCSV(csv){
-  const lines = [];
-  let current = "";
-  let inQuotes = false;
+$("btnTpl").onclick=()=>{
+  const csv=`Nama,Tipe,Ukuran,Supplier,Tanggal_Kedatangan,Jumlah_Unit,Warna,Lokasi,Kemasan
+Polygon Strada,MTB,27.5",VL,2025-09-20,5,"Merah:2; Hitam:3","Toko:3; Gudang:2",Dus
+United Seattle 3.0,Road,29",JY,2025-09-15,3,"Biru:1; Putih:2","Toko:3",Karung`;
   
-  for(let i = 0; i < csv.length; i++){
-    const char = csv[i];
-    
-    if(char === '"'){
-      inQuotes = !inQuotes;
-    } else if(char === '\n' && !inQuotes){
-      lines.push(parseCSVLine(current));
-      current = "";
-      continue;
-    }
-    
-    current += char;
-  }
-  
-  if(current) lines.push(parseCSVLine(current));
-  return lines;
-}
-
-function parseCSVLine(line){
-  const fields = [];
-  let current = "";
-  let inQuotes = false;
-  
-  for(let i = 0; i < line.length; i++){
-    const char = line[i];
-    
-    if(char === '"'){
-      inQuotes = !inQuotes;
-    } else if(char === ',' && !inQuotes){
-      fields.push(current);
-      current = "";
-      continue;
-    } else {
-      current += char;
-    }
-  }
-  
-  fields.push(current);
-  return fields.map(f => f.trim().replace(/^"|"$/g, ''));
-}
-
-function parsePairs(str, keyName, valName){
-  if(!str) return [];
-  const pairs = str.split(";").map(p => p.trim()).filter(p => p);
-  const result = [];
-  
-  pairs.forEach(p => {
-    const [key, val] = p.split(":").map(x => x.trim());
-    if(key && val){
-      result.push({
-        [keyName]: key,
-        [valName]: parseInt(val) || 0
-      });
-    }
-  });
-  
-  return result;
-}
-
-function downloadTemplate(){
-  const headers = ["ID","Status","Nama","Tipe","Ukuran","Supplier","TanggalKedatangan","Jumlah","Warna","Lokasi","Kemasan","Kode"];
-  const example = [
-    "","masuk","Polygon Strada","MTB",'29"',"VL","2025-09-20","5","Merah:2; Hitam:3","Toko:5","Dus","VL200925"
-  ];
-  
-  let csv = headers.join(",") + "\n";
-  csv += example.join(",") + "\n";
-  
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "template-import-mujur-bikes.csv";
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="mujur-bikes-template.csv";
   a.click();
   URL.revokeObjectURL(url);
+};
+
+function parseCSVLine(line){
+  const result=[];
+  let current="";
+  let inQuotes=false;
+  
+  for(let i=0;i<line.length;i++){
+    const char=line[i];
+    
+    if(char==='"'&&(i===0||line[i-1]!=='\\')){
+      inQuotes=!inQuotes;
+    } else if(char===','&&!inQuotes){
+      result.push(current);
+      current="";
+    } else {
+      current+=char;
+    }
+  }
+  
+  result.push(current);
+  return result.map(f=>f.replace(/^"|"$/g,'').trim());
 }
 
-/* ========= Event Listeners ========= */
-document.addEventListener("DOMContentLoaded", function(){
-  // Auto-complete untuk nama
-  $("fName").oninput = function(){ fillNameSuggest(this.value); };
-  document.addEventListener("click", function(){ $("acList").style.display="none"; });
-  
-  // Toggle status assembly fields
-  $("fStatus").onchange = function(){
-    $("asmRow").classList.toggle("hidden", this.value !== "dirakit");
+function parseColorQty(str){
+  if(!str) return [];
+  return str.split(";").map(p=>{
+    const [color,qty]=p.split(":").map(x=>x.trim());
+    return {color,qty:parseInt(qty)||1};
+  }).filter(x=>x.color);
+}
+
+function parseLocQty(str){
+  if(!str) return [{name:"Toko",qty:1}];
+  return str.split(";").map(p=>{
+    const [name,qty]=p.split(":").map(x=>x.trim());
+    return {name,qty:parseInt(qty)||1};
+  }).filter(x=>x.name);
+}
+
+/* ========= Modal Helpers ========= */
+function showModal(id){ 
+  $(id).classList.add("show"); 
+  document.body.style.overflow="hidden"; 
+}
+function closeModal(id){ 
+  $(id).classList.remove("show"); 
+  document.body.style.overflow=""; 
+  _detailCtx=null;
+}
+
+// Close modals when clicking outside
+document.querySelectorAll(".modal").forEach(m=>{
+  m.onclick=e=>{
+    if(e.target===m) closeModal(m.id);
   };
-  
-  // Sort direction toggle
-  $("sortDir").onclick = function(){
-    this.textContent = this.textContent === "↑" ? "↓" : "↑";
-    renderList();
-  };
-  
-  // Search and sort triggers
-  $("searchBox").oninput = renderList;
-  $("sortKey").onchange = renderList;
-  
-  // Multi-select buttons
-  $("btnMulti").onclick = toggleMulti;
-  $("btnMassEdit").onclick = massEdit;
-  $("btnMassDelete").onclick = massDelete;
-  $("btnMassCancel").onclick = toggleMulti;
-  
-  // Add buttons
-  $("btnAdd").onclick = openAdd;
-  $("btnAddAsm").onclick = openAsmPicker;
-  $("btnAddSell").onclick = openSellPicker;
-  
-  // Master edit buttons
-  $("btnMasterEdit").onclick = drawMasterEdit;
-  $("btnMasterSave").onclick = saveMasterEdit;
-  $("btnMasterCancel").onclick = cancelMasterEdit;
-  
-  // Import/Export
-  $("btnImportData").onclick = importCSV;
-  $("btnTpl").onclick = downloadTemplate;
-  
-  // Close modals when clicking outside
-  document.querySelectorAll(".modal").forEach(m => {
-    m.onclick = function(e){
-      if(e.target === this){
-        this.classList.remove("show");
-      }
-    };
-  });
-  
-  // Close menus when clicking outside
-  document.addEventListener("click", function(){
-    document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open"));
-  });
-  
-  // Initialize
-  initAuth();
-  setRoute("dashboard");
-  initRealTimeFeatures();
-  
-  // Check notifications on startup
-  setTimeout(checkStockNotifications, 1000);
-  
-  // Close detail modal with Escape key
-  document.addEventListener("keydown", function(e){
-    if(e.key === "Escape"){
-      closeModal("detailModal");
-    }
-  });
 });
 
-/* ========= Modal Utilities ========= */
-function showModal(id){ $(id).classList.add("show"); }
-function closeModal(id){ $(id).classList.remove("show"); }
-
-/* ========= Local Step Functions ========= */
-function stepLocal(inputId, type, delta){
-  const el = $(inputId);
-  let current = parseInt(el.value || "0");
-  let max = parseInt(el.max || "999");
+/* ========= Initialize ========= */
+function init(){
+  // Initialize auth first
+  initAuth();
   
-  current += delta;
-  if(current < 1) current = 1;
-  if(current > max) current = max;
+  // Initialize real-time features
+  initRealTimeFeatures();
   
-  el.value = current;
+  // Check stock notifications
+  checkStockNotifications();
   
-  // Trigger input event untuk update real-time
-  if(type === 'asm') {
-    clampToStock(el, 'asm');
-  } else if(type === 'sell') {
-    clampToStock(el, 'sell');
-  }
+  // Render initial view
+  render();
+  
+  // Auto-save every 30 seconds
+  setInterval(()=>{
+    if(store.items.length>0){
+      save();
+    }
+  },30000);
+  
+  console.log("🚀 MUJUR BIKES v8.0 Enhanced System initialized");
+  console.log("📊 Total items:", store.items.length);
+  console.log("👤 Current user:", currentUser);
 }
 
-function clampToStock(inputEl, type){
-  let max = 0;
-  
-  if(type === 'asm' && asmPick){
-    max = asmPick.totalQty;
-  } else if(type === 'sell' && sellPick){
-    max = sellPick.totalQty;
-  }
-  
-  inputEl.max = max;
-  
-  let current = parseInt(inputEl.value || "0");
-  if(current > max) {
-    inputEl.value = max;
-  }
-  if(current < 1 && max > 0) {
-    inputEl.value = 1;
-  }
-}
-
-// ========= EXPORT FUNCTIONS FOR HTML ONCLICK =========
-window.takePhoto = takePhoto;
-window.startCamera = startCamera;
-window.capturePhoto = capturePhoto;
-window.retakePhoto = retakePhoto;
-window.savePhoto = savePhoto;
-window.closeCamera = closeCamera;
-window.stopCamera = stopCamera;
-window.uploadPhotoFallback = uploadPhotoFallback;
-window.generateQRCode = generateQRCode;
-window.openQRScanner = openQRScanner;
-window.stopQRScanner = stopQRScanner;
-window.simulateQRScan = simulateQRScan;
-window.openDetailFromScan = openDetailFromScan;
-window.printQRCode = printQRCode;
-window.addImageInline = addImageInline;
-window.navDetail = navDetail;
-window.secureEdit = secureEdit;
-window.secureDelete = secureDelete;
-window.openAsmPicker = openAsmPicker;
-window.openAsmDetail = openAsmDetail;
-window.openSellPicker = openSellPicker;
-window.openSellDetail = openSellDetail;
-window.stepLocal = stepLocal;
-window.clampToStock = clampToStock;
-window.setRoute = setRoute;
-window.showModal = showModal;
-window.closeModal = closeModal;
-window.askPass = askPass;
-window.submitPass = submitPass;
-window.closePass = closePass;
-window.togglePasswordVisibility = togglePasswordVisibility;
-window.toggleLoginPassword = toggleLoginPassword;
-window.closeLogin = closeLogin;
-window.doLogin = doLogin;
-window.logout = logout;
-window.showSuccess = showSuccess;
-window.toast = toast;
-window.uid = uid;
-window.ddmmyy = ddmmyy;
-window.isoFromDDMMYY = isoFromDDMMYY;
-window.genCode = genCode;
-window.min1 = min1;
-window.stepNum = stepNum;
-window.setToday = setToday;
-window.chips = chips;
-window.esc = esc;
-window.openNAModal = openNAModal;
-window.guardAllLocToQty = guardAllLocToQty;
-window.guardLocRow = guardLocRow;
-window.totalQtyInput = totalQtyInput;
-window.collectColors = collectColors;
-window.collectLocs = collectLocs;
-window.listMissingAddItem = listMissingAddItem;
-window.bindBtnSaveOnce = bindBtnSaveOnce;
-window.finalizeAdd = finalizeAdd;
-window.afterEdit = afterEdit;
-window.drawMasterEdit = drawMasterEdit;
-window.mAdd = mAdd;
-window.mDel = mDel;
-window.generateReport = generateReport;
-window.renderHistory = renderHistory;
-window.undoHistory = undoHistory;
-window.downloadCSV = downloadCSV;
-window.escCSV = escCSV;
-window.splitCSV = splitCSV;
-window.parsePairs = parsePairs;
-window.init = initAuth;
-window.initAuth = initAuth;
-window.applyUserPermissions = applyUserPermissions;
-window.showUserInfo = showUserInfo;
-window.checkStockNotifications = checkStockNotifications;
-window.showNotifications = showNotifications;
-window.closeNotifications = closeNotifications;
-window.initRealTimeFeatures = initRealTimeFeatures;
-window.toggleAutoRefresh = toggleAutoRefresh;
-window.autoBackup = autoBackup;
-window.cleanupOldBackups = cleanupOldBackups;
-window.restoreFromAutoBackup = restoreFromAutoBackup;
-window.showCustomReportBuilder = showCustomReportBuilder;
-window.updateSelectedColumns = updateSelectedColumns;
-window.addFilter = addFilter;
-window.renderActiveFilters = renderActiveFilters;
-window.removeFilter = removeFilter;
-window.generateCustomReport = generateCustomReport;
-window.backupData = backupData;
-window.restoreData = restoreData;
-window.resetData = resetData;
-window.validateDateSequence = validateDateSequence;
-window.refreshData = refreshData;
-window.changeItemsPerPage = changeItemsPerPage;
-window.goToPage = goToPage;
+// Start the application
+init();
 </script>
 </body>
 </html>
