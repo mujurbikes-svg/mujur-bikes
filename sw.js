@@ -4,8 +4,7 @@ const urlsToCache = [
   '/index.html',
   '/manifest.json',
   '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js'
+  '/icons/icon-512x512.png'
 ];
 
 self.addEventListener('install', function(event) {
